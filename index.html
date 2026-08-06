@@ -114,6 +114,21 @@
           </div>
           <p class="status-note">図面が無い場合は手描きスケッチをスマホで撮影して選択してください。CAD図DXF化ツール(gsi-to)の地図画面は、スクリーンショット(Win+Shift+S)を画像保存して下絵にできます。</p>
         </fieldset>
+        <fieldset>
+          <legend>地図から下絵を作る(国土地理院の地図・建物外形 — 通信が必要)</legend>
+          <div class="check-row">
+            <input type="text" id="gsiAddress" placeholder="住所を入力(例: 草津市野路1丁目)" style="flex:2;min-width:220px;font:inherit;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--panel-bg);color:var(--text);">
+            <button type="button" class="btn" id="gsiSearchBtn">地図を表示</button>
+          </div>
+          <div class="check-row" id="gsiControls" hidden style="margin-top:var(--space-2);">
+            <button type="button" class="btn btn-small" id="gsiZoomIn">拡大</button>
+            <button type="button" class="btn btn-small" id="gsiZoomOut">縮小</button>
+            <button type="button" class="btn btn-small" id="gsiStyleBtn">標準/淡色 切替</button>
+            <button type="button" class="btn btn-primary" id="gsiAdoptBtn">この範囲を下絵に採用</button>
+          </div>
+          <canvas id="gsiCanvas" hidden style="max-width:100%;border:1px solid var(--border);border-radius:6px;cursor:grab;touch-action:none;"></canvas>
+          <p class="status-note" id="gsiStatus" aria-live="polite">住所で表示 → ドラッグで店舗を中央に合わせ、建物の輪郭が見える倍率で「採用」してください。採用画像には出典「国土地理院(地理院タイル)」が明記されます。</p>
+        </fieldset>
         <fieldset id="mapEditor" hidden>
           <legend>設備マーカーの配置(種類を選んでマップ上をクリック)</legend>
           <div class="check-row" id="mapCatRadios" role="radiogroup" aria-label="マーカーの種類"></div>

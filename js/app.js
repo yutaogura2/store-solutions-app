@@ -123,8 +123,119 @@
 
     initPhotos();
     initMap();
+    initGsi();
     initDemographics();
     showStep(1);
+  }
+
+  /* ============ 地図から下絵を作る(国土地理院・地理院タイル) ============
+     出典明記(国土地理院コンテンツ利用規約)を採用画像に自動で焼き込む。通信必須(オフライン時は従来のアップロード) */
+  var gsi = { lon: null, lat: null, z: 17, style: "pale", drag: null, tileCache: {}, renderId: 0 };
+  var GSI_W = 1000, GSI_H = 600, TILE = 256;
+
+  function worldPx(lon, lat, z) {
+    var n = Math.pow(2, z) * TILE;
+    var rad = lat * Math.PI / 180;
+    return {
+      x: (lon + 180) / 360 * n,
+      y: (1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2 * n
+    };
+  }
+  function pxToLonLat(x, y, z) {
+    var n = Math.pow(2, z) * TILE;
+    var yy = Math.PI * (1 - 2 * y / n);
+    return { lon: x / n * 360 - 180, lat: Math.atan(Math.sinh(yy)) * 180 / Math.PI };
+  }
+
+  function initGsi() {
+    $("gsiSearchBtn").addEventListener("click", gsiSearch);
+    $("gsiZoomIn").addEventListener("click", function () { if (gsi.z < 18) { gsi.z += 1; gsiRender(); } });
+    $("gsiZoomOut").addEventListener("click", function () { if (gsi.z > 15) { gsi.z -= 1; gsiRender(); } });
+    $("gsiStyleBtn").addEventListener("click", function () { gsi.style = gsi.style === "pale" ? "std" : "pale"; gsi.tileCache = {}; gsiRender(); });
+    $("gsiAdoptBtn").addEventListener("click", gsiAdopt);
+    var canvas = $("gsiCanvas");
+    canvas.addEventListener("pointerdown", function (ev) {
+      gsi.drag = { x: ev.clientX, y: ev.clientY, lon: gsi.lon, lat: gsi.lat };
+      canvas.setPointerCapture(ev.pointerId);
+      ev.preventDefault();
+    });
+    canvas.addEventListener("pointermove", function (ev) {
+      if (!gsi.drag) { return; }
+      var rect = canvas.getBoundingClientRect();
+      var scale = GSI_W / rect.width;
+      var start = worldPx(gsi.drag.lon, gsi.drag.lat, gsi.z);
+      var moved = pxToLonLat(start.x - (ev.clientX - gsi.drag.x) * scale, start.y - (ev.clientY - gsi.drag.y) * scale, gsi.z);
+      gsi.lon = moved.lon; gsi.lat = moved.lat;
+      gsiRender();
+    });
+    canvas.addEventListener("pointerup", function () { gsi.drag = null; });
+  }
+
+  function gsiSearch() {
+    var q = $("gsiAddress").value.trim();
+    if (!q) { $("gsiStatus").textContent = "住所を入力してください"; return; }
+    $("gsiStatus").textContent = "検索中…";
+    fetch("https://msearch.gsi.go.jp/address-search/AddressSearch?q=" + encodeURIComponent(q))
+      .then(function (r) { return r.json(); })
+      .then(function (list) {
+        if (!list || list.length === 0) {
+          $("gsiStatus").textContent = "住所が見つかりませんでした(市区町村名から入れる・番地を省く等お試しください)";
+          return;
+        }
+        var c = list[0].geometry.coordinates; // [経度, 緯度]
+        gsi.lon = c[0]; gsi.lat = c[1]; gsi.z = 17;
+        $("gsiCanvas").hidden = false;
+        $("gsiControls").hidden = false;
+        gsiRender();
+        $("gsiStatus").textContent = "「" + ((list[0].properties && list[0].properties.title) || q) + "」周辺を表示中。ドラッグで店舗を中央へ・「拡大」で建物の輪郭が見えます";
+      })
+      .catch(function () {
+        $("gsiStatus").textContent = "地図を取得できませんでした(通信環境をご確認ください。オフライン時は写真・スクリーンショットのアップロードをご利用ください)";
+      });
+  }
+
+  function gsiRender() {
+    var canvas = $("gsiCanvas");
+    canvas.width = GSI_W; canvas.height = GSI_H;
+    var ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#eef1f5"; ctx.fillRect(0, 0, GSI_W, GSI_H);
+    var center = worldPx(gsi.lon, gsi.lat, gsi.z);
+    var left = center.x - GSI_W / 2, top = center.y - GSI_H / 2;
+    var renderId = ++gsi.renderId;
+    for (var tx = Math.floor(left / TILE); tx <= Math.floor((left + GSI_W) / TILE); tx++) {
+      for (var ty = Math.floor(top / TILE); ty <= Math.floor((top + GSI_H) / TILE); ty++) {
+        (function (tx, ty) {
+          var key = gsi.style + "/" + gsi.z + "/" + tx + "/" + ty;
+          function draw(img) {
+            if (renderId !== gsi.renderId) { return; }
+            ctx.drawImage(img, Math.round(tx * TILE - left), Math.round(ty * TILE - top));
+          }
+          if (gsi.tileCache[key]) { draw(gsi.tileCache[key]); return; }
+          var img = new Image();
+          img.crossOrigin = "anonymous"; // 出典明記のうえ canvas 合成するため(地理院タイルはCORS対応)
+          img.onload = function () { gsi.tileCache[key] = img; draw(img); };
+          img.src = "https://cyberjapandata.gsi.go.jp/xyz/" + gsi.style + "/" + gsi.z + "/" + tx + "/" + ty + ".png";
+        })(tx, ty);
+      }
+    }
+  }
+
+  function gsiAdopt() {
+    try {
+      var out = document.createElement("canvas");
+      out.width = GSI_W; out.height = GSI_H + 30;
+      var ctx = out.getContext("2d");
+      ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, out.width, out.height);
+      ctx.drawImage($("gsiCanvas"), 0, 0);
+      ctx.fillStyle = "#5a6472"; ctx.font = "14px sans-serif";
+      ctx.fillText("地図出典: 国土地理院(地理院タイル)", 10, GSI_H + 20);
+      mapState.base = out.toDataURL("image/png");
+      mapState.blank = false;
+      showMapEditor();
+      $("gsiStatus").textContent = "下絵に採用しました。下の「設備マーカーの配置」でマーカーを打てます";
+    } catch (e) {
+      $("gsiStatus").textContent = "画像化できませんでした(" + (e && e.message) + ")。スクリーンショットのアップロードをご利用ください";
+    }
   }
 
   /* ============ 店舗所在地(人口動態) ============ */
