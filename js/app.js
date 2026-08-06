@@ -130,8 +130,9 @@
 
   /* ============ 地図から下絵を作る(国土地理院・地理院タイル) ============
      出典明記(国土地理院コンテンツ利用規約)を採用画像に自動で焼き込む。通信必須(オフライン時は従来のアップロード) */
-  var gsi = { lon: null, lat: null, z: 17, style: "pale", drag: null, tileCache: {}, renderId: 0 };
-  var GSI_W = 1000, GSI_H = 600, TILE = 256;
+  /* scale: タイル上限(z18)を超えて寄るためのデジタル拡大(1/2/4)。建物外形は線画のため拡大でも実用に耐える */
+  var gsi = { lon: null, lat: null, z: 17, scale: 1, style: "pale", drag: null, tileCache: {}, renderId: 0 };
+  var GSI_W = 1000, GSI_H = 600, TILE = 256, GSI_MAX_Z = 18, GSI_MAX_SCALE = 4;
 
   function worldPx(lon, lat, z) {
     var n = Math.pow(2, z) * TILE;
@@ -149,8 +150,16 @@
 
   function initGsi() {
     $("gsiSearchBtn").addEventListener("click", gsiSearch);
-    $("gsiZoomIn").addEventListener("click", function () { if (gsi.z < 18) { gsi.z += 1; gsiRender(); } });
-    $("gsiZoomOut").addEventListener("click", function () { if (gsi.z > 15) { gsi.z -= 1; gsiRender(); } });
+    $("gsiZoomIn").addEventListener("click", function () {
+      if (gsi.z < GSI_MAX_Z) { gsi.z += 1; }
+      else if (gsi.scale < GSI_MAX_SCALE) { gsi.scale *= 2; }
+      gsiRender(); gsiZoomNote();
+    });
+    $("gsiZoomOut").addEventListener("click", function () {
+      if (gsi.scale > 1) { gsi.scale /= 2; }
+      else if (gsi.z > 15) { gsi.z -= 1; }
+      gsiRender(); gsiZoomNote();
+    });
     $("gsiStyleBtn").addEventListener("click", function () { gsi.style = gsi.style === "pale" ? "std" : "pale"; gsi.tileCache = {}; gsiRender(); });
     $("gsiAdoptBtn").addEventListener("click", gsiAdopt);
     var canvas = $("gsiCanvas");
@@ -162,9 +171,11 @@
     canvas.addEventListener("pointermove", function (ev) {
       if (!gsi.drag) { return; }
       var rect = canvas.getBoundingClientRect();
-      var scale = GSI_W / rect.width;
+      var viewScale = GSI_W / rect.width;
       var start = worldPx(gsi.drag.lon, gsi.drag.lat, gsi.z);
-      var moved = pxToLonLat(start.x - (ev.clientX - gsi.drag.x) * scale, start.y - (ev.clientY - gsi.drag.y) * scale, gsi.z);
+      var moved = pxToLonLat(
+        start.x - (ev.clientX - gsi.drag.x) * viewScale / gsi.scale,
+        start.y - (ev.clientY - gsi.drag.y) * viewScale / gsi.scale, gsi.z);
       gsi.lon = moved.lon; gsi.lat = moved.lat;
       gsiRender();
     });
@@ -194,21 +205,29 @@
       });
   }
 
+  function gsiZoomNote() {
+    var level = gsi.scale > 1 ? "最大タイル+" + gsi.scale + "倍拡大(建物レベル)" : "ズームレベル " + gsi.z;
+    $("gsiStatus").textContent = "表示: " + level + "。ドラッグで移動 → 建物が十分大きく見えたら「この範囲を下絵に採用」";
+  }
+
   function gsiRender() {
     var canvas = $("gsiCanvas");
     canvas.width = GSI_W; canvas.height = GSI_H;
     var ctx = canvas.getContext("2d");
+    ctx.imageSmoothingEnabled = gsi.scale === 1; // 拡大時はシャープに(建物輪郭の線画向き)
     ctx.fillStyle = "#eef1f5"; ctx.fillRect(0, 0, GSI_W, GSI_H);
+    var s = gsi.scale;
     var center = worldPx(gsi.lon, gsi.lat, gsi.z);
-    var left = center.x - GSI_W / 2, top = center.y - GSI_H / 2;
+    var left = center.x * s - GSI_W / 2, top = center.y * s - GSI_H / 2;
+    var ts = TILE * s;
     var renderId = ++gsi.renderId;
-    for (var tx = Math.floor(left / TILE); tx <= Math.floor((left + GSI_W) / TILE); tx++) {
-      for (var ty = Math.floor(top / TILE); ty <= Math.floor((top + GSI_H) / TILE); ty++) {
+    for (var tx = Math.floor(left / ts); tx <= Math.floor((left + GSI_W) / ts); tx++) {
+      for (var ty = Math.floor(top / ts); ty <= Math.floor((top + GSI_H) / ts); ty++) {
         (function (tx, ty) {
           var key = gsi.style + "/" + gsi.z + "/" + tx + "/" + ty;
           function draw(img) {
             if (renderId !== gsi.renderId) { return; }
-            ctx.drawImage(img, Math.round(tx * TILE - left), Math.round(ty * TILE - top));
+            ctx.drawImage(img, Math.round(tx * ts - left), Math.round(ty * ts - top), ts, ts);
           }
           if (gsi.tileCache[key]) { draw(gsi.tileCache[key]); return; }
           var img = new Image();
