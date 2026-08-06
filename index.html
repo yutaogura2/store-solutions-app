@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>店舗ソリューション提案ツール</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="app-header">
+    <h1>店舗ソリューション提案ツール</h1>
+    <span class="version">v1.0.0</span>
+    <span class="header-sub">初回商談ヒアリング → リプレイス診断 → 提案資料作成(ストアソリューションズ株式会社)</span>
+  </header>
+
+  <main>
+    <nav class="wizard-nav no-print" aria-label="手順">
+      <button type="button" class="wizard-step" data-step="1" aria-current="step"><span class="step-num" aria-hidden="true">1</span>店舗情報</button>
+      <button type="button" class="wizard-step" data-step="2"><span class="step-num" aria-hidden="true">2</span>ヒアリング</button>
+      <button type="button" class="wizard-step" data-step="3"><span class="step-num" aria-hidden="true">3</span>診断・提案</button>
+      <button type="button" class="wizard-step" data-step="4"><span class="step-num" aria-hidden="true">4</span>資料作成</button>
+    </nav>
+
+    <!-- ============ STEP1: 店舗情報 ============ -->
+    <section class="card" id="step1">
+      <h2><span class="step-num" aria-hidden="true">1</span>店舗の基本情報</h2>
+      <div class="form-grid">
+        <div class="field" id="fieldCustomer">
+          <label for="inCustomer">店舗名・顧客名 <strong>*</strong></label>
+          <input type="text" id="inCustomer" placeholder="例: ○○食堂 草津店">
+          <span class="field-error" hidden>入力してください</span>
+        </div>
+        <div class="field" id="fieldBusinessType">
+          <label for="inBusinessType">業態 <strong>*</strong></label>
+          <select id="inBusinessType"></select>
+        </div>
+        <div class="field" id="fieldArea">
+          <label for="inArea">店舗面積(坪) <strong>*</strong></label>
+          <input type="number" id="inArea" min="1" max="1000" step="0.5" placeholder="例: 20">
+          <span class="status-note">1坪 ≈ 3.31㎡(㎡しか分からない場合は ㎡÷3.31)</span>
+          <span class="field-error" hidden>1以上の数値を入力してください</span>
+        </div>
+        <div class="field">
+          <label for="inHours">営業時間(時間/日)</label>
+          <input type="number" id="inHours" min="1" max="24" step="0.5" value="10">
+        </div>
+        <div class="field">
+          <label for="inDays">営業日数(日/月)</label>
+          <input type="number" id="inDays" min="1" max="31" step="1" value="26">
+        </div>
+        <div class="field">
+          <label for="inTariff">電気単価(円/kWh)</label>
+          <input type="number" id="inTariff" min="10" max="100" step="0.5" value="30">
+          <span class="status-note">請求書があれば実単価に変更(初期値は目安)</span>
+        </div>
+        <div class="field">
+          <label for="inPriceRate">機器価格の係数(%)</label>
+          <input type="number" id="inPriceRate" min="10" max="100" step="5" value="100">
+          <span class="status-note">経済効果の投資額に反映(定価=100。実勢に合わせて調整)</span>
+        </div>
+        <div class="field" id="fieldPref" hidden>
+          <label for="inPref">店舗所在地(府県)</label>
+          <select id="inPref"><option value="">未選択</option></select>
+          <span class="status-note">選ぶと商圏の地域特性(国勢調査)が提案に載ります</span>
+        </div>
+        <div class="field" id="fieldCity" hidden>
+          <label for="inCity">市区町村</label>
+          <select id="inCity" disabled><option value="">未選択</option></select>
+        </div>
+      </div>
+
+      <h3>今回ご提案するカテゴリ(該当を選択)</h3>
+      <div class="check-row" id="categoryChecks">
+        <label class="check-item"><input type="checkbox" id="catAircon" checked> 空調設備</label>
+        <label class="check-item"><input type="checkbox" id="catLighting"> 照明設備</label>
+        <label class="check-item"><input type="checkbox" id="catKitchen"> 厨房冷凍機器</label>
+        <label class="check-item"><input type="checkbox" id="catRenovation"> 店舗改装</label>
+      </div>
+      <p class="status-note" id="catError" hidden>カテゴリを1つ以上選択してください</p>
+
+      <details class="no-print" style="margin-top: var(--space-4);">
+        <summary class="status-note" style="cursor: pointer;">地域データの更新設定(管理者向け・e-Stat APIキー)</summary>
+        <div class="form-grid" style="margin-top: var(--space-3);">
+          <div class="field">
+            <label for="inEstatKey">e-Stat アプリケーションID(appId)</label>
+            <input type="text" id="inEstatKey" placeholder="未設定でも動作します(内蔵データを使用)">
+            <span class="status-note">e-Statのユーザ登録で発行されるID。人口動態データ全体の更新は保守スクリプト(更新手順.md)で行います</span>
+          </div>
+          <div class="field">
+            <label>&nbsp;</label>
+            <button type="button" class="btn" id="estatTestBtn">接続テスト</button>
+            <span class="status-note" id="estatTestResult" aria-live="polite"></span>
+          </div>
+        </div>
+      </details>
+    </section>
+
+    <!-- ============ STEP2: ヒアリング ============ -->
+    <section class="card" id="step2" hidden>
+      <h2><span class="step-num" aria-hidden="true">2</span>カテゴリ別ヒアリング</h2>
+      <div class="cat-tabs" role="tablist" id="catTabs"></div>
+
+      <!-- 店舗マップ -->
+      <div class="cat-panel" id="panelMap" role="tabpanel" hidden>
+        <fieldset>
+          <legend>下絵(店舗の平面図・手描きスケッチ・地図のスクリーンショット)</legend>
+          <div class="check-row">
+            <label class="upload-label">
+              <input type="file" id="mapBaseInput" class="visually-hidden" accept="image/*">
+              <span class="btn">下絵画像を選択</span>
+            </label>
+            <button type="button" class="btn" id="mapBlankBtn">白紙から作る</button>
+            <button type="button" class="btn" id="mapResetBtn">マップを消去</button>
+          </div>
+          <p class="status-note">図面が無い場合は手描きスケッチをスマホで撮影して選択してください。CAD図DXF化ツール(gsi-to)の地図画面は、スクリーンショット(Win+Shift+S)を画像保存して下絵にできます。</p>
+        </fieldset>
+        <fieldset id="mapEditor" hidden>
+          <legend>設備マーカーの配置(種類を選んでマップ上をクリック)</legend>
+          <div class="check-row" id="mapCatRadios" role="radiogroup" aria-label="マーカーの種類"></div>
+          <canvas id="mapCanvas"></canvas>
+          <div class="check-row" style="margin-top: var(--space-2);">
+            <button type="button" class="btn btn-small" id="mapUndoBtn">最後のマーカーを取消</button>
+            <button type="button" class="btn btn-small" id="mapMarkersClearBtn">マーカーを全て消去</button>
+          </div>
+        </fieldset>
+      </div>
+
+      <!-- 空調 -->
+      <div class="cat-panel" id="panelAircon" role="tabpanel" hidden>
+        <fieldset>
+          <legend>既設の空調</legend>
+          <div class="form-grid">
+            <div class="field">
+              <label for="acUnits">既設台数(室内機)</label>
+              <input type="number" id="acUnits" min="0" max="20" step="1" placeholder="不明なら空欄">
+            </div>
+            <div class="field">
+              <label for="acYear">設置年(おおよそ)</label>
+              <select id="acYear">
+                <option value="1998">2000年より前</option>
+                <option value="2005" selected>2001〜2010年</option>
+                <option value="2013">2011〜2015年</option>
+                <option value="2020">2016年以降</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="acTrouble">現状の不調・お困りごと</label>
+              <textarea id="acTrouble" placeholder="例: 効きが悪い/夏場に止まる/修理費がかさむ/電気代が高い"></textarea>
+            </div>
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend>負荷の条件(該当を選択 — 必要能力に加算)</legend>
+          <div class="check-row">
+            <label class="check-item"><input type="checkbox" id="adjCeilingHigh"> 天井高3m超</label>
+            <label class="check-item"><input type="checkbox" id="adjTopFloor"> 最上階・屋根直下</label>
+            <label class="check-item"><input type="checkbox" id="adjLargeWindow"> 西日・大開口ガラス</label>
+            <label class="check-item"><input type="checkbox" id="adjOpenKitchen"> オープンキッチン</label>
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend>既設空調の写真(任意 — 提案資料に載ります)</legend>
+          <div class="check-row">
+            <label class="upload-label">
+              <input type="file" class="visually-hidden" data-photo-input="aircon" accept="image/*">
+              <span class="btn btn-small">写真を選択</span>
+            </label>
+            <img data-photo-preview="aircon" alt="既設空調の写真" style="max-height:90px;border-radius:6px;" hidden>
+            <button type="button" class="btn btn-small" data-photo-clear="aircon" hidden>削除</button>
+          </div>
+        </fieldset>
+      </div>
+
+      <!-- 照明 -->
+      <div class="cat-panel" id="panelLighting" role="tabpanel" hidden>
+        <fieldset>
+          <legend>既設照明(種類ごとに本数を入力)</legend>
+          <div id="lightRows"></div>
+          <button type="button" class="btn btn-small" id="addLightRow">+ 行を追加</button>
+        </fieldset>
+        <fieldset>
+          <legend>既設照明の写真(任意 — 提案資料に載ります)</legend>
+          <div class="check-row">
+            <label class="upload-label">
+              <input type="file" class="visually-hidden" data-photo-input="lighting" accept="image/*">
+              <span class="btn btn-small">写真を選択</span>
+            </label>
+            <img data-photo-preview="lighting" alt="既設照明の写真" style="max-height:90px;border-radius:6px;" hidden>
+            <button type="button" class="btn btn-small" data-photo-clear="lighting" hidden>削除</button>
+          </div>
+        </fieldset>
+      </div>
+
+      <!-- 厨房 -->
+      <div class="cat-panel" id="panelKitchen" role="tabpanel" hidden>
+        <fieldset>
+          <legend>既設の厨房冷凍機器(機器ごとに入力)</legend>
+          <div id="kitchenRows"></div>
+          <button type="button" class="btn btn-small" id="addKitchenRow">+ 行を追加</button>
+        </fieldset>
+        <fieldset>
+          <legend>既設厨房機器の写真(任意 — 提案資料に載ります)</legend>
+          <div class="check-row">
+            <label class="upload-label">
+              <input type="file" class="visually-hidden" data-photo-input="kitchen" accept="image/*">
+              <span class="btn btn-small">写真を選択</span>
+            </label>
+            <img data-photo-preview="kitchen" alt="既設厨房機器の写真" style="max-height:90px;border-radius:6px;" hidden>
+            <button type="button" class="btn btn-small" data-photo-clear="kitchen" hidden>削除</button>
+          </div>
+        </fieldset>
+      </div>
+
+      <!-- 改装 -->
+      <div class="cat-panel" id="panelRenovation" role="tabpanel" hidden>
+        <fieldset>
+          <legend>改装の目的(該当を選択)</legend>
+          <div class="check-row" id="renoPurposes"></div>
+        </fieldset>
+        <fieldset>
+          <legend>検討したい工事(該当を選択 — 坪単価の工事は対象坪数も入力)</legend>
+          <div id="renoMenus"></div>
+        </fieldset>
+        <div class="form-grid">
+          <div class="field">
+            <label for="renoTiming">希望時期</label>
+            <input type="text" id="renoTiming" placeholder="例: 来年2月の閑散期">
+          </div>
+          <div class="field">
+            <label for="renoBudget">予算感</label>
+            <input type="text" id="renoBudget" placeholder="例: 300万円以内">
+          </div>
+        </div>
+        <fieldset>
+          <legend>現状の店舗写真(任意 — 提案資料に載ります)</legend>
+          <div class="check-row">
+            <label class="upload-label">
+              <input type="file" class="visually-hidden" data-photo-input="renovation" accept="image/*">
+              <span class="btn btn-small">写真を選択</span>
+            </label>
+            <img data-photo-preview="renovation" alt="現状の店舗写真" style="max-height:90px;border-radius:6px;" hidden>
+            <button type="button" class="btn btn-small" data-photo-clear="renovation" hidden>削除</button>
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend>施工イメージ写真(任意 — 現状写真と並べて「ビフォー/アフター」で資料に載ります)</legend>
+          <div class="check-row">
+            <label class="upload-label">
+              <input type="file" class="visually-hidden" data-photo-input="renovationAfter" accept="image/*">
+              <span class="btn btn-small">写真を選択</span>
+            </label>
+            <img data-photo-preview="renovationAfter" alt="施工イメージ写真" style="max-height:90px;border-radius:6px;" hidden>
+            <button type="button" class="btn btn-small" data-photo-clear="renovationAfter" hidden>削除</button>
+          </div>
+          <p class="status-note">類似施工例の写真・メーカーのイメージ写真など。出所・使用許可の確認は営業側で行ってください。</p>
+        </fieldset>
+      </div>
+    </section>
+
+    <!-- ============ STEP3: 診断・提案 ============ -->
+    <section class="card" id="step3" hidden>
+      <h2><span class="step-num" aria-hidden="true">3</span>診断結果とご提案</h2>
+      <div id="diagContent"></div>
+    </section>
+
+    <!-- ============ STEP4: 資料作成 ============ -->
+    <section class="card" id="step4" hidden>
+      <h2><span class="step-num" aria-hidden="true">4</span>提案資料の作成</h2>
+      <div class="form-grid">
+        <div class="field">
+          <label for="inProposalDate">提案日</label>
+          <input type="date" id="inProposalDate">
+        </div>
+        <div class="field">
+          <label for="inSalesName">担当者名</label>
+          <input type="text" id="inSalesName" placeholder="例: 営業部 ○○">
+        </div>
+        <div class="field">
+          <label for="inCompanyName">会社名</label>
+          <input type="text" id="inCompanyName" value="ストアソリューションズ株式会社">
+        </div>
+      </div>
+      <p class="status-note">生成される資料: 表紙/現状の課題/ご提案の全体像/店舗マップ/カテゴリ別のご提案(既設写真・新機種イメージつき)/経済効果/投資回収の見通し/補助金/導入の進め方/留意事項</p>
+      <div class="wizard-actions" style="justify-content: flex-start;">
+        <button type="button" class="btn btn-primary" id="genPptxBtn">提案資料(PowerPoint)を生成</button>
+        <button type="button" class="btn" id="exportCsvBtn">計算根拠を出力(CSV — 補助金申請の添付用)</button>
+        <button type="button" class="btn" id="saveJsonBtn">入力内容を保存(JSON)</button>
+        <label class="upload-label">
+          <input type="file" id="loadJsonInput" class="visually-hidden" accept=".json">
+          <span class="btn">保存した入力を読込</span>
+        </label>
+      </div>
+      <p id="genStatus" class="status-note" aria-live="polite"></p>
+
+      <fieldset style="margin-top: var(--space-4);">
+        <legend>店舗間比較(チェーン展開のお客様向け)</legend>
+        <div class="check-row">
+          <label class="upload-label">
+            <input type="file" id="compareInput" class="visually-hidden" accept=".json" multiple>
+            <span class="btn">比較する店舗の保存JSONを選択(2件以上)</span>
+          </label>
+          <button type="button" class="btn" id="compareReportBtn" hidden>比較レポート(PowerPoint)を生成</button>
+        </div>
+        <p class="status-note">各店舗で「入力内容を保存(JSON)」したファイルを複数選ぶと、削減効果・回収年数・商圏特性を横並び比較できます。</p>
+        <div id="compareResult"></div>
+      </fieldset>
+    </section>
+
+    <!-- 処理中 -->
+    <section class="card no-print" id="loadingCard" hidden>
+      <div class="progress-row">
+        <span class="spinner" aria-hidden="true"></span>
+        <span id="progressText" role="status">資料を生成しています…</span>
+      </div>
+    </section>
+
+    <!-- エラー -->
+    <section class="card error-card" id="errorCard" role="alert" hidden>
+      <h2>エラーが発生しました</h2>
+      <p id="errorCause">(原因)</p>
+      <p id="errorAction">(対処)</p>
+      <details><summary>詳細(元のメッセージ)</summary><pre id="errorRaw"></pre></details>
+      <button type="button" class="btn" id="errorCloseBtn">閉じる</button>
+    </section>
+
+    <div class="wizard-actions no-print">
+      <button type="button" class="btn" id="backBtn" disabled>← 戻る</button>
+      <button type="button" class="btn btn-primary" id="nextBtn">次へ →</button>
+    </div>
+  </main>
+
+  <footer class="app-footer">
+    <p class="status-note">本ツールの金額・効果はすべて概算の目安です。正式なご提案・お見積りは現地調査のうえ作成してください。型番は提案時点の代表例であり、受注前に最新カタログでご確認ください。顧客の入力内容はこのブラウザ内でのみ処理され、外部には送信されません。</p>
+  </footer>
+
+  <script src="libs/pptxgen.bundle.js"></script>
+  <script src="data/constants.js"></script>
+  <script src="data/master_aircon.js"></script>
+  <script src="data/master_lighting.js"></script>
+  <script src="data/master_kitchen.js"></script>
+  <script src="data/master_renovation.js"></script>
+  <script src="data/master_subsidy.js"></script>
+  <script src="data/master_demographics.js"></script>
+  <script src="data/master_marketing.js"></script>
+  <script src="data/master_operations.js"></script>
+  <script src="data/master_background.js"></script>
+  <script src="data/images.js"></script>
+  <script src="data/qr.js"></script>
+  <script src="js/images_fallback.js"></script>
+  <script src="js/logic/aircon.js"></script>
+  <script src="js/logic/lighting.js"></script>
+  <script src="js/logic/kitchen.js"></script>
+  <script src="js/logic/renovation.js"></script>
+  <script src="js/logic/economics.js"></script>
+  <script src="js/logic/subsidy.js"></script>
+  <script src="js/logic/demographics.js"></script>
+  <script src="js/pptx/proposal.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
