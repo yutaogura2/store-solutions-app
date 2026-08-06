@@ -69,6 +69,7 @@
     if (diag.econAggregate && diag.econAggregate.annualSavingYen > 0) {
       buildEconomics(pptx, diag, state, C);
       buildPayback(pptx, diag, state, C);
+      if (diag.lease) { buildLease(pptx, diag, state); }
     }
     if (diag.operations && diag.operations.items.length > 0) { buildOperations(pptx, diag, state); }
     if (diag.subsidies.length > 0) { buildSubsidy(pptx, diag, state); }
@@ -267,14 +268,18 @@
     var noteY = 2.1 + (rows.length) * 0.42 + 0.2;
     // 更新時期の目安(市場調査で確認した公的・業界根拠 — 「なぜ今か」の裏付け)
     if (a.ageInfo && a.lifecycle) {
-      slide.addShape("rect", { x: 0.6, y: noteY, w: 12.1, h: 1.05, fill: { color: LIGHT } });
+      slide.addShape("rect", { x: 0.6, y: noteY, w: 12.1, h: 1.2, fill: { color: LIGHT } });
       slide.addText([
         { text: "更新時期の目安: ", options: { bold: true, color: NAVY, fontSize: 11.5 } },
         { text: a.ageInfo.text + "\n", options: { color: "1F2430", fontSize: 10.5 } },
-        { text: "業界団体(JRAIA)の耐用年数目安は" + a.lifecycle.jraiaYears + "。" + a.lifecycle.partsNote + "。" + a.lifecycle.r22Note + "\n", options: { color: "1F2430", fontSize: 9.5 } },
+        { text: "業界団体(JRAIA)の耐用年数目安は" + a.lifecycle.jraiaYears + "。" + a.lifecycle.partsNote + "。\n", options: { color: "1F2430", fontSize: 9.5 } },
+        { text: "冷媒規制: " +
+          (a.refInfo && a.refInfo.isR22Era ? "この年代の機種はR22冷媒の可能性が高く、2020年の全廃から約" + a.refInfo.r22Elapsed + "年 — 修理用冷媒の入手性が低下しています。" : "") +
+          (a.refInfo && a.refInfo.next ? "現行冷媒(HFC)の国内供給枠は" + a.refInfo.next.year + "年(あと" + a.refInfo.nextRemaining + "年)に" + a.refInfo.next.label + "へ削減されます。\n" : "\n"),
+          options: { color: "B00020", fontSize: 9.5, bold: true } },
         { text: a.lifecycle.disclaimer + "(出典: " + a.lifecycle.source + ")", options: { color: GRAY, fontSize: 8.5 } }
-      ], { x: 0.75, y: noteY + 0.05, w: 11.8, h: 0.95, valign: "top", fontFace: FONT, lineSpacing: 13 });
-      noteY += 1.15;
+      ], { x: 0.75, y: noteY + 0.05, w: 11.8, h: 1.1, valign: "top", fontFace: FONT, lineSpacing: 13 });
+      noteY += 1.3;
     }
     slide.addText([
       { text: "工事費の目安: " + man(a.install.low) + "〜" + man(a.install.high) + "(標準工事・実額は現地調査後)。" + (a.lifecycle ? a.lifecycle.reuseNote : "") + "\n", options: {} },
@@ -578,6 +583,28 @@
         { text: " 補助金の活用・機器グレードの見直し・電気単価の実態反映により改善する可能性があります(担当までご相談ください)。", options: { color: "1F2430" } }
       ], noteOpts);
     }
+  }
+
+  /* ---- 導入方法のご提案(一括購入/リース・試算) ---- */
+  function buildLease(pptx, diag, state) {
+    var agg = diag.econAggregate, ls = diag.lease;
+    var slide = newSlide(pptx, "導入方法のご提案(一括購入 / リース・試算)", state);
+    var rows = [
+      [th("項目"), th("一括購入"), th("リース(" + ls.years + "年・試算)")],
+      [td("初期費用", { bold: true }), td(man(agg.investLow) + "〜" + man(agg.investHigh), { align: "right" }), td("0円〜(工事条件による)", { align: "right" })],
+      [td("月々のお支払い", { bold: true }), td("—", { align: "right" }), td("約" + ls.monthly.toLocaleString("ja-JP") + "円/月", { align: "right", bold: true })],
+      [td("月々の電気代削減(試算)", { bold: true }), td("約" + ls.monthlySaving.toLocaleString("ja-JP") + "円/月", { align: "right", color: GREEN }), td("約" + ls.monthlySaving.toLocaleString("ja-JP") + "円/月", { align: "right", color: GREEN })],
+      [td("実質のご負担(試算)", { bold: true }), td("初期投資を約" + (agg.paybackYears != null ? agg.paybackYears + "年" : "—") + "で回収", { align: "right" }),
+        td("実質 約" + ls.netMonthly.toLocaleString("ja-JP") + "円/月(削減がリース料の約" + ls.coverRatio + "%をカバー)", { align: "right", bold: true, color: ls.netMonthly <= 0 ? GREEN : "1F2430" })],
+      [td(ls.years + "年間の総支払額", { bold: true }), td(man(agg.investMid) + "(中央値)", { align: "right" }), td("約" + man(ls.totalPayment), { align: "right" })],
+      [td("備考"), td("設備は自社資産(減価償却)", { fontSize: 9.5 }), td("初期費用を抑えて更新可能。メンテナンス込み契約では修理費負担の平準化も可能(契約内容による)", { fontSize: 9.5 })]
+    ];
+    slide.addTable(rows, {
+      x: 0.6, y: 1.3, w: 12.1, colW: [2.8, 4.4, 4.9],
+      border: { type: "solid", color: "D9DDE3", pt: 0.75 }, autoPage: false, rowH: 0.55
+    });
+    slide.addText("リース料率" + ls.ratePercent + "%/月・" + ls.years + "年での試算例です。実際の料率・可否はリース会社の審査により変動します。電気代削減額は本資料の概算前提によります。",
+      { x: 0.6, y: 5.9, w: 12.1, h: 0.5, fontFace: FONT, fontSize: 10, color: GRAY });
   }
 
   /* ---- 補助金 ---- */

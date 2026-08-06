@@ -661,6 +661,9 @@
       priceRatePercent: Number($("inPriceRate").value) || C.DEFAULT_PRICE_RATE_PERCENT,
       prefCode: $("inPref").value,
       cityCode: $("inCity").value,
+      leaseEnabled: $("inLeaseEnabled").checked,
+      leaseYears: Number($("inLeaseYears").value) || C.DEFAULT_LEASE_YEARS,
+      leaseRatePercent: Number($("inLeaseRate").value) || C.DEFAULT_LEASE_RATE_PERCENT,
       categories: selectedCategories(),
       aircon: {
         units: Number($("acUnits").value) || 0,
@@ -730,6 +733,7 @@
       }, C);
       diag.aircon = { cap: cap, plan: plan, candidates: cands, chosen: chosen, era: era, install: install, econ: econ,
         ageInfo: window.SSAircon.ageAssessment(input.aircon.year, new Date().getFullYear()),
+        refInfo: window.SSAircon.refrigerantInfo(input.aircon.year, new Date().getFullYear(), MA.lifecycle.refrigerant),
         lifecycle: MA.lifecycle,
         image: window.SSImages.get(chosen.imageKey, chosen.maker + " " + chosen.series + " イメージ"),
         oldImage: photos.aircon || window.SSImages.get(chosen.imageKey, "既設空調", true) };
@@ -798,6 +802,13 @@
     diag.subsidies = window.SSSubsidy.applicable(input.categories, MS, input.prefCode);
     diag.econAggregate = window.SSEconomics.aggregate(
       [diag.econ.aircon, diag.econ.lighting, diag.econ.kitchen].filter(Boolean), C);
+
+    // リース試算(有効時のみ・概算)
+    if (input.leaseEnabled && diag.econAggregate.investMid > 0) {
+      diag.lease = window.SSEconomics.leaseCalc(
+        diag.econAggregate.investMid, diag.econAggregate.annualSavingYen,
+        input.leaseYears, input.leaseRatePercent);
+    }
 
     // 運用改善(費用ゼロの省エネ)+公的診断の橋渡し
     diag.operations = {
@@ -868,7 +879,10 @@
         (input.aircon.trouble ? '<p class="status-note">ヒアリングした不調: ' + esc(input.aircon.trouble) + "</p>" : "") +
         '<div class="formula-note"><strong>更新時期の目安: </strong>' + esc(a.ageInfo.text) + "<br>" +
         "業界団体(JRAIA)の耐用年数目安は" + esc(a.lifecycle.jraiaYears) + "(" + esc(a.lifecycle.jraiaCondition) + ")。" +
-        esc(a.lifecycle.partsNote) + "。" + esc(a.lifecycle.r22Note) + "。<br><span>" + esc(a.lifecycle.disclaimer) + "(出典: " + esc(a.lifecycle.source) + ")</span></div>" +
+        esc(a.lifecycle.partsNote) + "。<br><strong>冷媒規制: </strong>" +
+        (a.refInfo.isR22Era ? "この年代の機種はR22冷媒の可能性が高く、R22は2020年の全廃から約" + a.refInfo.r22Elapsed + "年 — 修理用冷媒は再生品中心で入手性が低下しています(室外機の銘板で確認できます)。" : "") +
+        (a.refInfo.next ? "現行冷媒(HFC)の国内供給枠は" + a.refInfo.next.year + "年(あと" + a.refInfo.nextRemaining + "年)に" + esc(a.refInfo.next.label) + "へ削減されます。" : "") +
+        "<br><span>" + esc(a.lifecycle.disclaimer) + "(出典: " + esc(a.lifecycle.source) + ")</span></div>" +
         "</div>";
     }
 
@@ -980,6 +994,7 @@
         econRow("厨房冷凍", diag.econ.kitchen, input.tariff) +
         "</tbody></table></div>" +
         (agg.co2Kg > 0 ? '<p class="status-note">CO2削減の概算: 約' + agg.co2Kg.toLocaleString() + " kg-CO2/年(杉の木 約" + agg.sugiTrees + "本分の年間吸収量に相当。環境省公表の排出係数に基づく概算)</p>" : "") +
+        (diag.lease ? '<div class="formula-note"><strong>リースでの導入(試算): </strong>月額 約' + diag.lease.monthly.toLocaleString() + "円(" + diag.lease.years + "年・料率" + diag.lease.ratePercent + "%/月)— 月々の電気代削減 約" + diag.lease.monthlySaving.toLocaleString() + "円がリース料の約" + diag.lease.coverRatio + "%をカバーし、実質月額負担は約" + diag.lease.netMonthly.toLocaleString() + "円の試算です。初期費用を抑えて更新できます(審査・料率により変動)。</div>" : "") +
         '<p class="formula-note">前提: 電気単価' + input.tariff + "円/kWh・営業" + input.hoursPerDay + "時間/日×" + input.daysPerMonth +
         "日/月・機器価格=" + (input.priceRatePercent === 100 ? "定価" : "定価×" + input.priceRatePercent + "%") +
         "。空調は負荷率" + C.AIRCON_LOAD_FACTOR + "・年式帯の代表効率(COP)による推計。実際の使用状況により変動します。</p></div>";
@@ -1213,6 +1228,9 @@
     $("inDays").value = d.daysPerMonth || C.DEFAULT_DAYS_PER_MONTH;
     $("inTariff").value = d.tariff || C.DEFAULT_TARIFF_YEN_PER_KWH;
     $("inPriceRate").value = d.priceRatePercent || C.DEFAULT_PRICE_RATE_PERCENT;
+    $("inLeaseEnabled").checked = d.leaseEnabled !== false;
+    $("inLeaseYears").value = d.leaseYears || C.DEFAULT_LEASE_YEARS;
+    $("inLeaseRate").value = d.leaseRatePercent || C.DEFAULT_LEASE_RATE_PERCENT;
     if (MD && MD.cities.length > 0) {
       $("inPref").value = d.prefCode || "";
       fillCities(d.prefCode || "", d.cityCode || null);

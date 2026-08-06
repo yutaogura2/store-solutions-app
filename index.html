@@ -58,6 +58,18 @@
           <input type="number" id="inPriceRate" min="10" max="100" step="5" value="100">
           <span class="status-note">経済効果の投資額に反映(定価=100。実勢に合わせて調整)</span>
         </div>
+        <div class="field">
+          <label>リース試算(導入方法の比較)</label>
+          <label class="check-item"><input type="checkbox" id="inLeaseEnabled" checked> リース提案も試算する</label>
+          <div class="check-row" style="margin-top:4px;">
+            <span class="status-note">期間</span>
+            <input type="number" id="inLeaseYears" min="3" max="10" step="1" value="6" style="width:70px;font:inherit;padding:6px;border:1px solid var(--border);border-radius:6px;background:var(--panel-bg);color:var(--text);">
+            <span class="status-note">年 / 月額料率</span>
+            <input type="number" id="inLeaseRate" min="0.5" max="5" step="0.1" value="1.7" style="width:80px;font:inherit;padding:6px;border:1px solid var(--border);border-radius:6px;background:var(--panel-bg);color:var(--text);">
+            <span class="status-note">%</span>
+          </div>
+          <span class="status-note">料率は一般的な目安 — 提携リース会社の条件に合わせて調整(審査により変動)</span>
+        </div>
         <div class="field" id="fieldPref" hidden>
           <label for="inPref">店舗所在地(府県)</label>
           <select id="inPref"><option value="">未選択</option></select>
@@ -174,7 +186,7 @@
           </div>
         </fieldset>
         <fieldset>
-          <legend>既設空調の写真(任意 — 提案資料に載ります)</legend>
+          <legend>既設空調の写真(任意 — 機器・銘板・サーモグラフィ等。提案資料に載ります)</legend>
           <div class="check-row">
             <label class="upload-label">
               <input type="file" class="visually-hidden" data-photo-input="aircon" accept="image/*">

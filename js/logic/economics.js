@@ -61,6 +61,22 @@
     };
   }
 
+  /* リース試算(概算) — 月額=投資額×月額料率。実質月額負担=リース月額−月々の電気代削減額 */
+  function leaseCalc(investMid, annualSavingYen, leaseYears, monthlyRatePercent) {
+    if (!(investMid > 0) || !(leaseYears > 0) || !(monthlyRatePercent > 0)) { return null; }
+    var monthly = Math.round(investMid * monthlyRatePercent / 100);
+    var monthlySaving = Math.round(annualSavingYen / 12);
+    return {
+      years: leaseYears,
+      ratePercent: monthlyRatePercent,
+      monthly: monthly,
+      totalPayment: monthly * leaseYears * 12,
+      monthlySaving: monthlySaving,
+      netMonthly: monthly - monthlySaving,           // 正=実質持ち出し / 負=削減がリース料を上回る
+      coverRatio: monthly > 0 ? Math.round(monthlySaving / monthly * 100) : null  // 削減がリース料の何%をカバーするか
+    };
+  }
+
   /* 投資回収グラフの表示年数
      損益分岐点が既定年数(10年)より先にある場合、既定のままだと肝心の交差点がグラフに映らないため
      分岐点+1年まで伸ばす(上限あり)。到達しない/超長期なら上限で打ち切る */
@@ -100,6 +116,7 @@
     lightingEconomics: lightingEconomics,
     kitchenEconomics: kitchenEconomics,
     paybackChartYears: paybackChartYears,
+    leaseCalc: leaseCalc,
     aggregate: aggregate
   };
 });

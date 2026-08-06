@@ -106,6 +106,20 @@
     return { age: age, stage: stage, text: text };
   }
 
+  /* 冷媒規制の「あと何年」情報(refrigerant: master_aircon.lifecycle.refrigerant) */
+  function refrigerantInfo(installYear, currentYear, ref) {
+    var next = null;
+    for (var i = 0; i < ref.hfcMilestones.length; i++) {
+      if (ref.hfcMilestones[i].year > currentYear) { next = ref.hfcMilestones[i]; break; }
+    }
+    return {
+      isR22Era: installYear <= ref.r22EraUntil,
+      r22Elapsed: Math.max(0, currentYear - ref.r22EndYear),
+      next: next,
+      nextRemaining: next ? next.year - currentYear : null
+    };
+  }
+
   /* 既設機の効率(COP)を年式帯から推計 */
   function existingCop(year, C) {
     var eras = C.AIRCON_EXISTING_COP_BY_ERA;
@@ -133,6 +147,7 @@
     buildCandidates: buildCandidates,
     existingCop: existingCop,
     ageAssessment: ageAssessment,
+    refrigerantInfo: refrigerantInfo,
     installCost: installCost
   };
 });
