@@ -64,6 +64,12 @@
     INSTALL_COST_LIGHTING_PER_UNIT: { low: 3000, high: 8000 },   // 器具1台あたり交換工事
     INSTALL_COST_KITCHEN_PER_UNIT:  { low: 20000, high: 60000 }, // 搬入・入替・処分の目安
 
+    /* --- CO2換算(概算・出典を資料に明記) ---
+       CO2_KG_PER_KWH: 電気の排出係数(kg-CO2/kWh)。環境省公表の全国平均係数を基にした概算値 — 年度更新時に最新値へ差し替える(更新手順.md)
+       SUGI_CO2_KG_PER_TREE: 杉の木1本の年間CO2吸収量の目安(環境省/林野庁資料由来として業界で慣用) */
+    CO2_KG_PER_KWH: 0.434,
+    SUGI_CO2_KG_PER_TREE: 14,
+
     /* --- 経済効果の表示前提 --- */
     ECON_YEARS: 10,           // 累計効果の表示年数(「10年間の累計効果」の基準)
     ECON_CHART_MAX_YEARS: 20  // 投資回収グラフの上限年数(分岐点が遠いときの打ち切り)

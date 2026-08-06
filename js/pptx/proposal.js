@@ -264,12 +264,22 @@
     });
     replaceFigure(slide, a.era.label + "設置", a.oldImage, a.chosen.maker + " " + a.chosen.series, a.image);
 
-    var noteY = 2.1 + (rows.length) * 0.42 + 0.25;
+    var noteY = 2.1 + (rows.length) * 0.42 + 0.2;
+    // 更新時期の目安(市場調査で確認した公的・業界根拠 — 「なぜ今か」の裏付け)
+    if (a.ageInfo && a.lifecycle) {
+      slide.addShape("rect", { x: 0.6, y: noteY, w: 12.1, h: 1.05, fill: { color: LIGHT } });
+      slide.addText([
+        { text: "更新時期の目安: ", options: { bold: true, color: NAVY, fontSize: 11.5 } },
+        { text: a.ageInfo.text + "\n", options: { color: "1F2430", fontSize: 10.5 } },
+        { text: "業界団体(JRAIA)の耐用年数目安は" + a.lifecycle.jraiaYears + "。" + a.lifecycle.partsNote + "。" + a.lifecycle.r22Note + "\n", options: { color: "1F2430", fontSize: 9.5 } },
+        { text: a.lifecycle.disclaimer + "(出典: " + a.lifecycle.source + ")", options: { color: GRAY, fontSize: 8.5 } }
+      ], { x: 0.75, y: noteY + 0.05, w: 11.8, h: 0.95, valign: "top", fontFace: FONT, lineSpacing: 13 });
+      noteY += 1.15;
+    }
     slide.addText([
-      { text: "工事費の目安: " + man(a.install.low) + "〜" + man(a.install.high) + "(標準工事・実額は現地調査後)\n", options: {} },
-      { text: "既設(" + a.era.label + "設置・想定COP" + a.era.cop + ")→ 新機種(COP" + a.chosen.cop + ")で効率が大きく改善します。\n", options: {} },
-      { text: "※印の型番は提案時点の代表例です。正式見積時に最新カタログで確認します。", options: { color: AMBER } }
-    ], { x: 0.6, y: noteY, w: 12.1, h: 1.2, fontFace: FONT, fontSize: 11.5, color: GRAY, lineSpacing: 18 });
+      { text: "工事費の目安: " + man(a.install.low) + "〜" + man(a.install.high) + "(標準工事・実額は現地調査後)。" + (a.lifecycle ? a.lifecycle.reuseNote : "") + "\n", options: {} },
+      { text: "既設(" + a.era.label + "設置・想定COP" + a.era.cop + ")→ 新機種(COP" + a.chosen.cop + ")で効率が大きく改善します。※印の型番は提案時点の代表例です(正式見積時に最新確認)。", options: {} }
+    ], { x: 0.6, y: noteY, w: 12.1, h: 0.8, fontFace: FONT, fontSize: 10.5, color: GRAY, lineSpacing: 15 });
   }
 
   /* ---- 照明 ---- */
@@ -519,10 +529,14 @@
       x: 0.6, y: 5.45, w: 12.1, colW: [2.2, 2.8, 2.6, 2.5, 2.0],
       border: { type: "solid", color: "D9DDE3", pt: 0.75 }, autoPage: false, rowH: 0.34, fontSize: 10
     });
+    if (agg.co2Kg > 0) {
+      slide.addText("CO2削減の概算: 約" + agg.co2Kg.toLocaleString("ja-JP") + " kg-CO2/年(杉の木 約" + agg.sugiTrees + "本分の年間吸収量に相当・環境省公表の排出係数に基づく概算)",
+        { x: 0.6, y: 6.5, w: 12.1, h: 0.28, fontFace: FONT, fontSize: 10, bold: true, color: "2E8B57" });
+    }
     slide.addText("前提: 電気単価" + input.tariff + "円/kWh・営業" + input.hoursPerDay + "時間/日×" + input.daysPerMonth +
       "日/月・機器価格=" + (input.priceRatePercent === 100 ? "メーカー希望価格" : "メーカー希望価格×" + input.priceRatePercent + "%") +
       "・空調負荷率" + C.AIRCON_LOAD_FACTOR + "・年式帯の代表効率による推計。実際の使用状況・契約条件により変動します。",
-      { x: 0.6, y: 6.75, w: 12.1, h: 0.3, fontFace: FONT, fontSize: 9, color: GRAY });
+      { x: 0.6, y: 6.8, w: 12.1, h: 0.3, fontFace: FONT, fontSize: 9, color: GRAY });
   }
 
   /* ---- 投資回収の見通し(1年単位の累積折れ線+損益分岐点) ---- */

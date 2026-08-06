@@ -88,6 +88,9 @@
     });
     out.paybackYears = out.annualSavingYen > 0 ? round1(out.investMid / out.annualSavingYen) : null;
     out.tenYearNet = out.annualSavingYen * (C.ECON_YEARS || 10) - out.investMid;
+    // CO2削減の概算(排出係数×削減kWh)と杉の木換算
+    out.co2Kg = Math.round(out.annualSavingKwh * (C.CO2_KG_PER_KWH || 0));
+    out.sugiTrees = C.SUGI_CO2_KG_PER_TREE > 0 ? Math.round(out.co2Kg / C.SUGI_CO2_KG_PER_TREE) : 0;
     return out;
   }
 

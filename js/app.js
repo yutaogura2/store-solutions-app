@@ -729,6 +729,8 @@
         installHigh: install.high
       }, C);
       diag.aircon = { cap: cap, plan: plan, candidates: cands, chosen: chosen, era: era, install: install, econ: econ,
+        ageInfo: window.SSAircon.ageAssessment(input.aircon.year, new Date().getFullYear()),
+        lifecycle: MA.lifecycle,
         image: window.SSImages.get(chosen.imageKey, chosen.maker + " " + chosen.series + " イメージ"),
         oldImage: photos.aircon || window.SSImages.get(chosen.imageKey, "既設空調", true) };
       diag.econ.aircon = econ;
@@ -864,6 +866,9 @@
         '<p class="status-note">工事費目安(' + esc(a.install.label) + "×" + a.plan.units + "台): " + fmtYen(a.install.low) + "〜" + fmtYen(a.install.high) +
         "。「要確認」の型番は最新カタログでの確認が必要です。</p>" +
         (input.aircon.trouble ? '<p class="status-note">ヒアリングした不調: ' + esc(input.aircon.trouble) + "</p>" : "") +
+        '<div class="formula-note"><strong>更新時期の目安: </strong>' + esc(a.ageInfo.text) + "<br>" +
+        "業界団体(JRAIA)の耐用年数目安は" + esc(a.lifecycle.jraiaYears) + "(" + esc(a.lifecycle.jraiaCondition) + ")。" +
+        esc(a.lifecycle.partsNote) + "。" + esc(a.lifecycle.r22Note) + "。<br><span>" + esc(a.lifecycle.disclaimer) + "(出典: " + esc(a.lifecycle.source) + ")</span></div>" +
         "</div>";
     }
 
@@ -974,6 +979,7 @@
         econRow("照明", diag.econ.lighting, input.tariff) +
         econRow("厨房冷凍", diag.econ.kitchen, input.tariff) +
         "</tbody></table></div>" +
+        (agg.co2Kg > 0 ? '<p class="status-note">CO2削減の概算: 約' + agg.co2Kg.toLocaleString() + " kg-CO2/年(杉の木 約" + agg.sugiTrees + "本分の年間吸収量に相当。環境省公表の排出係数に基づく概算)</p>" : "") +
         '<p class="formula-note">前提: 電気単価' + input.tariff + "円/kWh・営業" + input.hoursPerDay + "時間/日×" + input.daysPerMonth +
         "日/月・機器価格=" + (input.priceRatePercent === 100 ? "定価" : "定価×" + input.priceRatePercent + "%") +
         "。空調は負荷率" + C.AIRCON_LOAD_FACTOR + "・年式帯の代表効率(COP)による推計。実際の使用状況により変動します。</p></div>";

@@ -89,6 +89,23 @@
     return out;
   }
 
+  /* 経過年数から更新時期の評価(JRAIA目安6〜15年に基づく — 断定しない文言) */
+  function ageAssessment(installYear, currentYear) {
+    var age = Math.max(0, currentYear - installYear);
+    var stage, text;
+    if (age >= 15) {
+      stage = "over";
+      text = "設置から約" + age + "年 — 業界団体の耐用年数目安(6〜15年)の上限に達しており、計画的な更新の検討期です";
+    } else if (age >= 9) {
+      stage = "caution";
+      text = "設置から約" + age + "年 — 補修用部品の保有期間(製造打切りから9年間が一般的)を考えると、故障時に修理できないリスクが高まる時期です";
+    } else {
+      stage = "ok";
+      text = "設置から約" + age + "年 — まだ使用期間に余裕がありますが、定期的な点検・清掃が効率維持に有効です";
+    }
+    return { age: age, stage: stage, text: text };
+  }
+
   /* 既設機の効率(COP)を年式帯から推計 */
   function existingCop(year, C) {
     var eras = C.AIRCON_EXISTING_COP_BY_ERA;
@@ -115,6 +132,7 @@
     pickPlan: pickPlan,
     buildCandidates: buildCandidates,
     existingCop: existingCop,
+    ageAssessment: ageAssessment,
     installCost: installCost
   };
 });
