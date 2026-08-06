@@ -36,10 +36,18 @@
      tolerance(既定0.95): 必要能力の95%以上あれば1クラス下を許容(端数で過大クラスに跳ねるのを防ぐ) */
   function pickPlan(requiredKw, existingUnits, master, C) {
     var tolerance = (C && C.AIRCON_CLASS_TOLERANCE) || 0.95;
+    var maxOversize = (C && C.AIRCON_MAX_OVERSIZE) || 1.3;
     var classes = master.classes;
     var maxKw = classes[classes.length - 1].kw;
     var units = existingUnits > 0 ? existingUnits
       : Math.max(1, Math.ceil(requiredKw / maxKw));
+    // 既設台数を踏襲すると最小クラスでも過大になる場合は台数を減らす(小規模店に多台数の既設があるケース)
+    var reducedFrom = null;
+    if (existingUnits > 0) {
+      var minKw = classes[0].kw;
+      while (units > 1 && minKw * units > requiredKw * maxOversize) { units -= 1; }
+      if (units !== existingUnits) { reducedFrom = existingUnits; }
+    }
     var perUnitKw = requiredKw / units;
     var cls = null;
     for (var i = 0; i < classes.length; i++) {
@@ -53,7 +61,7 @@
         if (classes[j].kw >= perUnitKw * tolerance - 0.001) { cls = classes[j]; break; }
       }
     }
-    return { units: units, cls: cls, totalKw: Math.round(cls.kw * units * 10) / 10 };
+    return { units: units, cls: cls, totalKw: Math.round(cls.kw * units * 10) / 10, reducedFrom: reducedFrom };
   }
 
   /* 品番候補の組み立て(メーカー×グレード) */

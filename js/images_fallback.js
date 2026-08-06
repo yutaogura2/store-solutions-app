@@ -86,12 +86,17 @@
     return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
 
-  /* key の画像を返す(収集済みがあればそれ、無ければSVGイラスト)。label はイラスト下部の説明文 */
-  function get(key, label) {
-    if (LIB && LIB[key]) { return LIB[key]; }
+  /* key の画像を返す(収集済みがあればそれ、無ければSVGイラスト)。label はイラスト下部の説明文
+     oldStyle=true で「既設(旧型)」向けのグレー調イラストを返す(実写真は使わない — 旧機は実写真と別物のため) */
+  function get(key, label, oldStyle) {
+    if (!oldStyle && LIB && LIB[key]) { return LIB[key]; }
     var svg = FRAME_PRE + shapeFor(key) +
       (label ? '<text x="100" y="140" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#5a6472">' + esc(label) + "</text>" : "") +
       "</svg>";
+    if (oldStyle) {
+      svg = svg.replace(/#dfe4ea/g, "#d4d4d4").replace(/#f2f4f7/g, "#efefef")
+               .replace(/#eaf2fa/g, "#e8e8e8").replace(/#dfe9f5/g, "#e0e0e0");
+    }
     return "data:image/svg+xml;base64," + b64(svg);
   }
 

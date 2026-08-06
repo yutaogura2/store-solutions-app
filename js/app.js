@@ -729,7 +729,8 @@
         installHigh: install.high
       }, C);
       diag.aircon = { cap: cap, plan: plan, candidates: cands, chosen: chosen, era: era, install: install, econ: econ,
-        image: window.SSImages.get(chosen.imageKey, chosen.maker + " " + chosen.series + " イメージ") };
+        image: window.SSImages.get(chosen.imageKey, chosen.maker + " " + chosen.series + " イメージ"),
+        oldImage: photos.aircon || window.SSImages.get(chosen.imageKey, "既設空調", true) };
       diag.econ.aircon = econ;
     }
 
@@ -749,7 +750,8 @@
       }, C) : null;
       lrows.forEach(function (r) { r.image = window.SSImages.get(r.ledImageKey, r.ledName); });
       diag.lighting = { rows: lrows, totals: ltot, econ: lecon,
-        image: lrows.length > 0 ? lrows[0].image : null };
+        image: lrows.length > 0 ? lrows[0].image : null,
+        oldImage: lrows.length > 0 ? (photos.lighting || window.SSImages.get(lrows[0].ledImageKey, "既設照明", true)) : null };
       if (lecon) { diag.econ.lighting = lecon; }
     }
 
@@ -766,7 +768,8 @@
       }, C) : null;
       krows.forEach(function (r) { r.image = window.SSImages.get(r.imageKey, r.typeName + " イメージ"); });
       diag.kitchen = { rows: krows, totals: ktot, econ: kecon,
-        image: krows.length > 0 ? krows[0].image : null };
+        image: krows.length > 0 ? krows[0].image : null,
+        oldImage: krows.length > 0 ? (photos.kitchen || window.SSImages.get(krows[0].imageKey, "既設機器", true)) : null };
       if (kecon) { diag.econ.kitchen = kecon; }
     }
 
@@ -840,7 +843,8 @@
         '<p class="formula-note">必要能力の算定: ' + esc(a.cap.businessTypeName) + " " + a.cap.areaTsubo + "坪 × " +
         a.cap.kwPerTsubo + "kW/坪 = " + a.cap.baseKw + "kW(" + esc(adjText) + ")→ <strong>" + a.cap.requiredKw + "kW</strong></p>" +
         '<div class="metric-row">' +
-        '<div class="metric"><div class="metric-label">推奨構成</div><div class="metric-value">' + a.plan.units + "台 × " + a.plan.cls.hp + '馬力</div><div class="metric-note">合計 ' + a.plan.totalKw + "kW(" + esc(a.candidates[0].shapeName) + ")</div></div>" +
+        '<div class="metric"><div class="metric-label">推奨構成</div><div class="metric-value">' + a.plan.units + "台 × " + a.plan.cls.hp + '馬力</div><div class="metric-note">合計 ' + a.plan.totalKw + "kW(" + esc(a.candidates[0].shapeName) + ")" +
+        (a.plan.reducedFrom ? "<br><strong>既設" + a.plan.reducedFrom + "台→" + a.plan.units + "台に集約</strong>(能力過大の解消・台数減で本体/工事費も抑制)" : "") + "</div></div>" +
         '<div class="metric"><div class="metric-label">既設の想定効率</div><div class="metric-value">COP ' + a.era.cop + '</div><div class="metric-note">' + esc(a.era.label) + "設置の代表値</div></div>" +
         "</div>" +
         '<div class="metric-row">' +

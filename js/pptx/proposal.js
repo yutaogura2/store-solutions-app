@@ -191,6 +191,18 @@
     });
   }
 
+  /* 「旧 → 新」対比イメージ図(リプレイス3カテゴリ共通・スライド右列) */
+  function replaceFigure(slide, oldLabel, oldData, newLabel, newData) {
+    if (!oldData || !newData) { return; }
+    var x = 9.35, w = 3.4;
+    slide.addText("【既設】" + oldLabel, { x: x, y: 1.3, w: w, h: 0.28, fontFace: FONT, fontSize: 9, bold: true, color: GRAY });
+    slide.addImage({ data: oldData, x: x, y: 1.58, w: w, h: 1.5, sizing: { type: "contain", w: w, h: 1.5 } });
+    slide.addShape("downArrow", { x: x + w / 2 - 0.22, y: 3.18, w: 0.44, h: 0.5, fill: { color: GREEN } });
+    slide.addText("リプレイス", { x: x + w / 2 + 0.3, y: 3.2, w: 1.6, h: 0.45, fontFace: FONT, fontSize: 10, bold: true, color: GREEN, valign: "middle" });
+    slide.addText("【新】" + newLabel, { x: x, y: 3.78, w: w, h: 0.28, fontFace: FONT, fontSize: 9, bold: true, color: NAVY });
+    slide.addImage({ data: newData, x: x, y: 4.06, w: w, h: 1.5, sizing: { type: "contain", w: w, h: 1.5 } });
+  }
+
   /* ---- 店舗マップ(更新箇所) ---- */
   function buildMap(pptx, diag, state) {
     var slide = newSlide(pptx, "店舗レイアウトと更新箇所", state);
@@ -227,7 +239,8 @@
       { text: a.cap.businessTypeName + " " + a.cap.areaTsubo + "坪 × " + a.cap.kwPerTsubo + "kW/坪 " + adjText + " → 約" + a.cap.requiredKw + "kW", options: {} }
     ], { x: 0.6, y: 1.0, w: 12.1, h: 0.45, fontFace: FONT, fontSize: 13, color: "1F2430" });
 
-    slide.addText("推奨構成: " + a.plan.units + "台 × " + a.plan.cls.hp + "馬力(合計" + a.plan.totalKw + "kW)/ " + a.chosen.shapeName, {
+    slide.addText("推奨構成: " + a.plan.units + "台 × " + a.plan.cls.hp + "馬力(合計" + a.plan.totalKw + "kW)/ " + a.chosen.shapeName +
+      (a.plan.reducedFrom ? " ※既設" + a.plan.reducedFrom + "台を" + a.plan.units + "台に集約(能力の最適化)" : ""), {
       x: 0.6, y: 1.5, w: 12.1, h: 0.45, fontFace: FONT, fontSize: 15, bold: true, color: NAVY
     });
 
@@ -249,10 +262,7 @@
       x: 0.6, y: 2.1, w: 8.5, colW: [0.6, 1.2, 1.9, 2.2, 1.0, 1.6],
       border: { type: "solid", color: "D9DDE3", pt: 0.75 }, rowH: 0.4, autoPage: false, fontSize: 10
     });
-    sideImages(slide, [
-      { label: "既設の状況(写真)", data: diag.input.photos && diag.input.photos.aircon },
-      { label: "新機種イメージ: " + a.chosen.maker + " " + a.chosen.series, data: a.image }
-    ]);
+    replaceFigure(slide, a.era.label + "設置", a.oldImage, a.chosen.maker + " " + a.chosen.series, a.image);
 
     var noteY = 2.1 + (rows.length) * 0.42 + 0.25;
     slide.addText([
@@ -281,10 +291,7 @@
       x: 0.6, y: 1.1, w: 8.5, colW: [2.5, 0.7, 3.2, 1.2, 0.9],
       border: { type: "solid", color: "D9DDE3", pt: 0.75 }, autoPage: false, rowH: 0.45, fontSize: 10
     });
-    sideImages(slide, [
-      { label: "既設の状況(写真)", data: diag.input.photos && diag.input.photos.lighting },
-      { label: "LED器具イメージ", data: L.image }
-    ]);
+    replaceFigure(slide, L.rows[0].typeName, L.oldImage, "LED器具", L.image);
     var y = Math.min(6.0, 1.1 + rows.length * 0.75 + 0.3);
     slide.addText(
       "合計削減電力: 約" + num(L.totals.totalWattSaving) + "W / 交換工事の目安: " + man(L.totals.installLow) + "〜" + man(L.totals.installHigh) +
@@ -312,10 +319,7 @@
       x: 0.6, y: 1.1, w: 8.5, colW: [1.8, 0.6, 1.1, 2.5, 1.7, 0.8],
       border: { type: "solid", color: "D9DDE3", pt: 0.75 }, autoPage: false, rowH: 0.5, fontSize: 9.5
     });
-    sideImages(slide, [
-      { label: "既設の状況(写真)", data: diag.input.photos && diag.input.photos.kitchen },
-      { label: "新機種イメージ", data: K.image }
-    ]);
+    replaceFigure(slide, K.rows[0].typeName + "(" + K.rows[0].eraLabel + ")", K.oldImage, "後継機種", K.image);
     var y = Math.min(6.0, 1.1 + rows.length * 0.8 + 0.3);
     slide.addText(
       "冷蔵・冷凍機器は24時間365日通電のため、古い機器ほど電気代の差が大きく出ます。" +
