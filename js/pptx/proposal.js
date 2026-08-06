@@ -26,7 +26,7 @@
       slide.addShape("rect", { x: 0, y: 0, w: 13.33, h: 0.75, fill: { color: NAVY } });
       slide.addText(title, {
         x: 0.4, y: 0.06, w: 11.0, h: 0.62,
-        fontFace: FONT, fontSize: 20, bold: true, color: WHITE, valign: "middle"
+        fontFace: FONT, fontSize: 22, bold: true, color: WHITE, valign: "middle"
       });
     }
     state.page += 1;
@@ -45,6 +45,15 @@
     if (opts) { Object.keys(opts).forEach(function (k) { o[k] = opts[k]; }); }
     return { text: String(text), options: o };
   }
+  /* 表の可読性向上(ゼブラ縞): rowsに直前でpushした行が、ヘッダー(index0)を除くデータ行の偶数番目(2,4,6…行目)なら
+     全セルにF2F4F7を適用する。◎提案行の緑ハイライト(E6F4EA)等、既にfill指定済みのセルは上書きしない */
+  function zebraLast(rows) {
+    var idx = rows.length - 1;
+    if (idx <= 0 || idx % 2 !== 0) { return; }
+    rows[idx].forEach(function (cell) {
+      if (cell && cell.options && !cell.options.fill) { cell.options.fill = { color: "F2F4F7" }; }
+    });
+  }
 
   function build(diag, C) {
     var input = diag.input;
@@ -62,11 +71,11 @@
     buildOverview(pptx, diag, state);
     if (diag.background) { buildBackground(pptx, diag, state); }
     if (diag.mapImage) { buildMap(pptx, diag, state); }
-    if (diag.aircon) { buildAircon(pptx, diag, state); }
-    if (diag.lighting && diag.lighting.rows.length > 0) { buildLighting(pptx, diag, state); }
-    if (diag.kitchen && diag.kitchen.rows.length > 0) { buildKitchen(pptx, diag, state); }
+    if (diag.aircon) { buildAircon(pptx, diag, state, C); }
+    if (diag.lighting && diag.lighting.rows.length > 0) { buildLighting(pptx, diag, state, C); }
+    if (diag.kitchen && diag.kitchen.rows.length > 0) { buildKitchen(pptx, diag, state, C); }
     if (diag.demographics) { buildDemographics(pptx, diag, state); }
-    if (diag.renovation && diag.renovation.estimate.breakdown.length > 0) { buildRenovation(pptx, diag, state); }
+    if (diag.renovation && diag.renovation.estimate.breakdown.length > 0) { buildRenovation(pptx, diag, state, C); }
     if (diag.econAggregate && diag.econAggregate.annualSavingYen > 0) {
       buildEconomics(pptx, diag, state, C);
       buildPayback(pptx, diag, state, C);
@@ -89,10 +98,10 @@
 
     slide.addShape("rect", { x: 0, y: 2.3, w: 13.33, h: 2.6, fill: { color: NAVY } });
     slide.addText(input.customer + " 様", {
-      x: 0.9, y: 2.55, w: 11.5, h: 0.8, fontFace: FONT, fontSize: 28, bold: true, color: WHITE
+      x: 0.9, y: 2.55, w: 11.5, h: 0.8, fontFace: FONT, fontSize: 28, bold: true, color: WHITE, charSpacing: 2
     });
     slide.addText("店舗設備リプレイスのご提案", {
-      x: 0.9, y: 3.35, w: 11.5, h: 0.9, fontFace: FONT, fontSize: 36, bold: true, color: WHITE
+      x: 0.9, y: 3.35, w: 11.5, h: 0.9, fontFace: FONT, fontSize: 36, bold: true, color: WHITE, charSpacing: 2
     });
     var catNames = [];
     if (diag.aircon) { catNames.push("空調設備"); }
@@ -107,7 +116,7 @@
     var lines = [dateText, state.company];
     if (input.meta.salesName) { lines.push("担当: " + input.meta.salesName); }
     slide.addText(lines.join("\n"), {
-      x: 0.9, y: 5.6, w: 11.5, h: 1.2, fontFace: FONT, fontSize: 14, color: GRAY, lineSpacing: 24
+      x: 6.9, y: 5.6, w: 5.5, h: 1.2, fontFace: FONT, fontSize: 14, color: GRAY, lineSpacing: 24, align: "right"
     });
     slide.addText(DISCLAIMER, {
       x: 0.4, y: 7.08, w: 12.5, h: 0.35, fontFace: FONT, fontSize: 8, color: GRAY
@@ -119,21 +128,24 @@
     var input = diag.input;
     var slide = newSlide(pptx, "現状の整理(ヒアリング内容)", state);
     var rows = [[th("項目"), th("内容")]];
-    rows.push([td("店舗名"), td(input.customer)]);
+    rows.push([td("店舗名"), td(input.customer)]); zebraLast(rows);
     var C = (typeof window !== "undefined" && window.SS_CONST) ? window.SS_CONST : null;
     var btName = C && C.AIRCON_LOAD_PER_TSUBO[input.businessType] ? C.AIRCON_LOAD_PER_TSUBO[input.businessType].name : input.businessType;
-    rows.push([td("業態"), td(btName)]);
-    rows.push([td("店舗面積"), td(input.areaTsubo + "坪(約" + Math.round(input.areaTsubo * 3.31) + "㎡)")]);
-    rows.push([td("営業時間"), td(input.hoursPerDay + "時間/日 × " + input.daysPerMonth + "日/月")]);
+    rows.push([td("業態"), td(btName)]); zebraLast(rows);
+    rows.push([td("店舗面積"), td(input.areaTsubo + "坪(約" + Math.round(input.areaTsubo * 3.31) + "㎡)")]); zebraLast(rows);
+    rows.push([td("営業時間"), td(input.hoursPerDay + "時間/日 × " + input.daysPerMonth + "日/月")]); zebraLast(rows);
     if (diag.aircon) {
       rows.push([td("既設空調"), td((input.aircon.units || diag.aircon.plan.units) + "台・" + diag.aircon.era.label + "設置" +
         (input.aircon.trouble ? "\nお困りごと: " + input.aircon.trouble : ""))]);
+      zebraLast(rows);
     }
     if (diag.lighting && diag.lighting.rows.length > 0) {
       rows.push([td("既設照明"), td(diag.lighting.rows.map(function (r) { return r.typeName + " " + r.count + "台"; }).join("\n"))]);
+      zebraLast(rows);
     }
     if (diag.kitchen && diag.kitchen.rows.length > 0) {
       rows.push([td("厨房冷凍機器"), td(diag.kitchen.rows.map(function (r) { return r.typeName + "(" + r.sizeName + ")" + r.count + "台・" + r.eraLabel; }).join("\n"))]);
+      zebraLast(rows);
     }
     if (diag.renovation) {
       var re = diag.renovation;
@@ -141,7 +153,7 @@
       if (re.purposes.length > 0) { reText.push("目的: " + re.purposes.join("・")); }
       if (re.timing) { reText.push("希望時期: " + re.timing); }
       if (re.budget) { reText.push("予算感: " + re.budget); }
-      if (reText.length > 0) { rows.push([td("改装のご意向"), td(reText.join("\n"))]); }
+      if (reText.length > 0) { rows.push([td("改装のご意向"), td(reText.join("\n"))]); zebraLast(rows); }
     }
     slide.addTable(rows, {
       x: 0.5, y: 1.1, w: 12.3, colW: [2.6, 9.7],
@@ -229,7 +241,7 @@
   }
 
   /* ---- 空調 ---- */
-  function buildAircon(pptx, diag, state) {
+  function buildAircon(pptx, diag, state, C) {
     var a = diag.aircon;
     var slide = newSlide(pptx, "空調設備のご提案", state);
 
@@ -259,14 +271,15 @@
         td(cand.gradeName, fill),
         td(man(cand.price * a.plan.units) + "(" + a.plan.units + "台)", Object.assign({ align: "right" }, fill))
       ]);
+      zebraLast(rows);
     });
     slide.addTable(rows, {
       x: 0.6, y: 2.1, w: 8.5, colW: [0.6, 1.2, 1.9, 2.2, 1.0, 1.6],
-      border: { type: "solid", color: "D9DDE3", pt: 0.75 }, rowH: 0.4, autoPage: false, fontSize: 10
+      border: { type: "solid", color: "D9DDE3", pt: 0.75 }, rowH: 0.36, autoPage: false, fontSize: 10
     });
     replaceFigure(slide, a.era.label + "設置", a.oldImage, a.chosen.maker + " " + a.chosen.series, a.image);
 
-    var noteY = 2.1 + (rows.length) * 0.42 + 0.2;
+    var noteY = 2.1 + (rows.length) * 0.38 + 0.2;
     // 更新時期の目安(市場調査で確認した公的・業界根拠 — 「なぜ今か」の裏付け)
     if (a.ageInfo && a.lifecycle) {
       slide.addShape("rect", { x: 0.6, y: noteY, w: 12.1, h: 1.2, fill: { color: LIGHT } });
@@ -283,13 +296,14 @@
       noteY += 1.3;
     }
     slide.addText([
-      { text: "工事費の目安: " + man(a.install.low) + "〜" + man(a.install.high) + "(標準工事・実額は現地調査後)。" + (a.lifecycle ? a.lifecycle.reuseNote : "") + "\n", options: {} },
+      { text: "工事費の目安: " + man(a.install.low) + "〜" + man(a.install.high) + "(標準工事・実額は現地調査後)。" + (a.lifecycle ? a.lifecycle.reuseNote : "") + "標準工期の目安は" + C.WORK_DURATION_NOTES.aircon + "(現地調査で確定)。\n", options: {} },
+      { text: "既設機の冷媒はフロン排出抑制法に基づき適正に回収・処分し、費用はお見積りに明示します。\n", options: { fontSize: 9 } },
       { text: "既設(" + a.era.label + "設置・想定COP" + a.era.cop + ")→ 新機種(COP" + a.chosen.cop + ")で効率が大きく改善します。※印の型番は提案時点の代表例(正式見積時に最新確認)、無印はカタログ確認済みの型番です。", options: {} }
-    ], { x: 0.6, y: noteY, w: 12.1, h: 0.8, fontFace: FONT, fontSize: 10.5, color: GRAY, lineSpacing: 15 });
+    ], { x: 0.6, y: noteY, w: 12.1, h: 0.79, fontFace: FONT, fontSize: 9.5, color: GRAY, lineSpacing: 13 });
   }
 
   /* ---- 照明 ---- */
-  function buildLighting(pptx, diag, state) {
+  function buildLighting(pptx, diag, state, C) {
     var L = diag.lighting;
     var slide = newSlide(pptx, "照明設備のご提案(LED化)", state);
     var rows = [[th("既設"), th("本数"), th("LED代替(候補)"), th("消費電力"), th("器具費(定価)")]];
@@ -309,14 +323,27 @@
     });
     replaceFigure(slide, L.rows[0].typeName, L.oldImage, "LED器具", L.image);
     var y = Math.min(6.0, 1.1 + rows.length * 0.75 + 0.3);
+    var noteH = 0.8;
     slide.addText(
       "合計削減電力: 約" + num(L.totals.totalWattSaving) + "W / 交換工事の目安: " + man(L.totals.installLow) + "〜" + man(L.totals.installHigh) +
-      "\nLED化により球替え・安定器交換のメンテナンス作業も不要になります。※印の型番は代表例(要最新確認)。",
-      { x: 0.6, y: y, w: 8.5, h: 0.8, fontFace: FONT, fontSize: 11.5, color: GRAY, lineSpacing: 18 });
+      "\nLED化により球替え・安定器交換のメンテナンス作業も不要になります。※印の型番は代表例(要最新確認)。標準工期の目安は" + C.WORK_DURATION_NOTES.lighting + "(現地調査で確定)。",
+      { x: 0.6, y: y, w: 8.5, h: noteH, fontFace: FONT, fontSize: 11.5, color: GRAY, lineSpacing: 18 });
+
+    // 蛍光灯の水俣条約規制(一次確認済み・既設に蛍光灯があるときのみ。右側の新旧対比画像(y1.3〜5.56)・上の注記と重ねない)
+    if (L.hasFluorescent && L.regulation && L.regulation.verified) {
+      var reg = L.regulation;
+      var regY = Math.min(6.65, Math.max(y + noteH + 0.12, 5.65));
+      var regH = Math.min(0.95, 7.0 - regY);
+      slide.addShape("rect", { x: 0.6, y: regY, w: 12.1, h: regH, fill: { color: LIGHT } });
+      slide.addText([
+        { text: reg.title + "\n", options: { bold: true, color: NAVY, fontSize: 11.5 } },
+        { text: "電球形は2026年1月1日(30W超は2027年1月)、コンパクト形は2027年1月1日、直管形・環形は2028年1月1日から製造・輸出入が禁止されます。" + reg.useNote + "。(出典: " + reg.source + ")", options: { color: "1F2430", fontSize: 10 } }
+      ], { x: 0.75, y: regY + 0.06, w: 11.8, h: regH - 0.12, valign: "top", fontFace: FONT, lineSpacing: 13 });
+    }
   }
 
   /* ---- 厨房 ---- */
-  function buildKitchen(pptx, diag, state) {
+  function buildKitchen(pptx, diag, state, C) {
     var K = diag.kitchen;
     var slide = newSlide(pptx, "厨房冷凍機器のご提案", state);
     var rows = [[th("機器"), th("台数"), th("年式帯"), th("後継候補(代表例)"), th("年間消費電力量(推計)"), th("本体希望価格")]];
@@ -339,8 +366,8 @@
     var y = Math.min(6.0, 1.1 + rows.length * 0.8 + 0.3);
     slide.addText(
       "冷蔵・冷凍機器は24時間365日通電のため、古い機器ほど電気代の差が大きく出ます。" +
-      "更新により故障(食材ロス・営業停止)のリスクも低減できます。年式帯からの推計値であり、実測ではありません。※印の型番は代表例(要最新確認)。",
-      { x: 0.6, y: y, w: 8.5, h: 0.9, fontFace: FONT, fontSize: 11.5, color: GRAY, lineSpacing: 18 });
+      "更新により故障(食材ロス・営業停止)のリスクも低減できます。年式帯からの推計値であり、実測ではありません。※印の型番は代表例(要最新確認)。標準工期の目安は" + C.WORK_DURATION_NOTES.kitchen + "(現地調査で確定)。" + K.inspectionNote + "(出典: 環境省)。",
+      { x: 0.6, y: y, w: 8.5, h: 0.9, fontFace: FONT, fontSize: 9.5, color: GRAY, lineSpacing: 13 });
   }
 
   /* ---- なぜ今、設備更新か(電気料金の構造+規制の正確な事実) ---- */
@@ -404,7 +431,7 @@
       { name: dg.city.name, labels: dg.comparison.map(function (c) { return c.label; }), values: dg.comparison.map(function (c) { return c.value; }) },
       { name: dg.pref.name + "平均", labels: dg.comparison.map(function (c) { return c.label; }), values: dg.comparison.map(function (c) { return c.prefAvg; }) }
     ], {
-      x: 0.5, y: 1.15, w: 6.6, h: 4.3,
+      x: 0.8, y: 1.15, w: 6.3, h: 4.3,
       barDir: "bar",
       chartColors: ["1F3050", "8B95A5"],
       showValue: true, dataLabelFormatCode: '0.0"%"', dataLabelFontSize: 9,
@@ -425,7 +452,7 @@
         { text: r.title + "\n", options: { bold: true, fontSize: 13, color: NAVY } },
         { text: itemsText + "\n", options: { fontSize: 11, color: "1F2430" } },
         { text: r.reason, options: { fontSize: 9.5, color: GRAY } }
-      ], { x: 7.55, y: y + 0.08, w: 5.1, h: 2.0, valign: "top", fontFace: FONT, lineSpacing: 15 });
+      ], { x: 7.55, y: y + 0.08, w: 5.1, h: 2.0, valign: "top", fontFace: FONT, lineSpacing: 16 });
       y += 2.3;
     });
 
@@ -446,7 +473,7 @@
   }
 
   /* ---- 改装 ---- */
-  function buildRenovation(pptx, diag, state) {
+  function buildRenovation(pptx, diag, state, C) {
     var re = diag.renovation;
     var slide = newSlide(pptx, "店舗改装のご提案(概算)", state);
     if (re.purposes.length > 0) {
@@ -477,7 +504,7 @@
     var sched = "進め方: " + (window.SS_MASTER_RENOVATION ? window.SS_MASTER_RENOVATION.schedule.map(function (s) { return s.step + "(" + s.duration + ")"; }).join(" → ") : "");
     slide.addText(sched +
       ((re.timing ? "\n希望時期: " + re.timing : "") + (re.budget ? " / 予算感: " + re.budget : "")) +
-      "\n営業を止めない夜間・休業日の施工もご相談いただけます。金額は仕様・下地の状態により変動します。",
+      "\n営業を止めない夜間・休業日の施工もご相談いただけます。金額は仕様・下地の状態により変動します。標準工期の目安は" + C.WORK_DURATION_NOTES.renovation + "(現地調査で確定)。",
       { x: 0.6, y: Math.min(y, 5.8), w: 8.5, h: 1.1, fontFace: FONT, fontSize: 11.5, color: GRAY, lineSpacing: 18 });
   }
 
@@ -499,7 +526,7 @@
       var y = 1.15 + i * 1.05;
       slide.addShape("rect", { x: 0.6, y: y, w: 5.4, h: 0.92, fill: { color: LIGHT } });
       slide.addText(m[0], { x: 0.85, y: y + 0.08, w: 4.9, h: 0.3, fontFace: FONT, fontSize: 11, color: GRAY });
-      slide.addText(m[1], { x: 0.85, y: y + 0.34, w: 4.9, h: 0.5, fontFace: FONT, fontSize: 19, bold: true, color: m[2] });
+      slide.addText(m[1], { x: 0.85, y: y + 0.34, w: 4.9, h: 0.5, fontFace: FONT, fontSize: 24, bold: true, color: m[2] });
     });
 
     // 右: 現状vs提案後の年間電気代グラフ
@@ -537,6 +564,7 @@
         td(man1(e.annualSavingYen) + "/年", { align: "right", color: GREEN, bold: true }),
         td(pbText, { align: "right" })
       ]);
+      zebraLast(rows);
     });
     slide.addTable(rows, {
       x: 0.6, y: 5.3, w: 12.1, colW: [2.2, 2.8, 2.6, 2.5, 2.0],
@@ -619,7 +647,7 @@
       x: 0.6, y: 1.3, w: 12.1, colW: [2.8, 4.4, 4.9],
       border: { type: "solid", color: "D9DDE3", pt: 0.75 }, autoPage: false, rowH: 0.55
     });
-    slide.addText("金額は税別。リース料率" + ls.ratePercent + "%/月・" + ls.years + "年での試算例です。実際の料率・可否はリース会社の審査により変動します。電気代削減額は本資料の概算前提によります。",
+    slide.addText("金額は税別。リース料率" + ls.ratePercent + "%/月・" + ls.years + "年での試算例です。リース料には機器本体+標準工事費を含みます(保険・税は別途。内訳・条件はリース会社のお見積りによります)。実際の料率・可否はリース会社の審査により変動します。電気代削減額は本資料の概算前提によります。",
       { x: 0.6, y: 5.9, w: 12.1, h: 0.5, fontFace: FONT, fontSize: 10, color: GRAY });
   }
 
@@ -629,7 +657,7 @@
     var n = diag.subsidies.length;
     /* 件数が多いときは行を詰め、注意書きがフッターと重ならない位置に固定する */
     var rh = n >= 5 ? 0.68 : 0.9;
-    var fs = n >= 5 ? 8.5 : 9.5;
+    var fs = n >= 5 ? 9 : 9.5;
     var rows = [[th("制度名"), th("概要"), th("補助率・公募")]];
     diag.subsidies.forEach(function (s) {
       rows.push([
@@ -637,6 +665,7 @@
         td(s.summary + "\n【注意】" + s.caution, { fontSize: fs }),
         td(s.rateNote + "\n" + s.seasonNote, { fontSize: fs })
       ]);
+      zebraLast(rows);
     });
     slide.addTable(rows, {
       x: 0.6, y: 1.0, w: 12.1, colW: [3.6, 5.9, 2.6],
@@ -669,7 +698,8 @@
       { x: 0.6, y: 4.9, w: 12.1, h: 0.6, fontFace: FONT, fontSize: 12, color: GRAY });
 
     // 製品情報・ARのQR(検証済み公式URLのみ・B3)
-    if (diag.qrLinks && diag.qrLinks.length > 0) {
+    var hasQr = diag.qrLinks && diag.qrLinks.length > 0;
+    if (hasQr) {
       slide.addText("スマホでご覧いただけます(メーカー公式ページ・AR設置シミュレーション)", { x: 0.6, y: 5.55, w: 12.1, h: 0.35, fontFace: FONT, fontSize: 11, bold: true, color: NAVY });
       diag.qrLinks.slice(0, 4).forEach(function (q, i) {
         var x = 0.7 + i * 3.15;
@@ -677,6 +707,10 @@
         slide.addText(q.label, { x: x + 0.95, y: 5.95, w: 2.1, h: 0.85, fontFace: FONT, fontSize: 8.5, color: "1F2430", valign: "middle" });
       });
     }
+
+    // 現地調査への橋渡し(フッターy=7.08に重ねない。QR掲載時はQRの直下・小さめフォントに)
+    slide.addText("まずは無料の現地調査からお気軽に。補助金の公募時期から逆算した推奨スケジュールと、ご希望により経済効果の計算根拠シート(CSV)もご用意します。",
+      { x: 0.6, y: hasQr ? 6.85 : 6.5, w: 12.1, h: hasQr ? 0.2 : 0.3, fontFace: FONT, fontSize: hasQr ? 9 : 10, color: GRAY });
   }
 
   /* ---- 留意事項 ---- */

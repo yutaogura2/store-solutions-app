@@ -758,7 +758,9 @@
       lrows.forEach(function (r) { r.image = window.SSImages.get(r.ledImageKey, r.ledName); });
       diag.lighting = { rows: lrows, totals: ltot, econ: lecon,
         image: lrows.length > 0 ? lrows[0].image : null,
-        oldImage: lrows.length > 0 ? (photos.lighting || window.SSImages.get(lrows[0].ledImageKey, "既設照明", true)) : null };
+        oldImage: lrows.length > 0 ? (photos.lighting || window.SSImages.get(lrows[0].ledImageKey, "既設照明", true)) : null,
+        regulation: ML.regulation,
+        hasFluorescent: window.SSLighting.hasFluorescent(lrows) };
       if (lecon) { diag.econ.lighting = lecon; }
     }
 
@@ -776,7 +778,8 @@
       krows.forEach(function (r) { r.image = window.SSImages.get(r.imageKey, r.typeName + " イメージ"); });
       diag.kitchen = { rows: krows, totals: ktot, econ: kecon,
         image: krows.length > 0 ? krows[0].image : null,
-        oldImage: krows.length > 0 ? (photos.kitchen || window.SSImages.get(krows[0].imageKey, "既設機器", true)) : null };
+        oldImage: krows.length > 0 ? (photos.kitchen || window.SSImages.get(krows[0].imageKey, "既設機器", true)) : null,
+        inspectionNote: MK.inspectionNote };
       if (kecon) { diag.econ.kitchen = kecon; }
     }
 

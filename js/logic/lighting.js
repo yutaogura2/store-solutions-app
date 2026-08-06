@@ -47,5 +47,10 @@
     return out;
   }
 
-  return { plan: plan, totals: totals };
+  /* plan()の結果行に「蛍光」を含むtypeNameが1つでもあるか(水俣条約の規制ブロック表示判定・純関数) */
+  function hasFluorescent(rows) {
+    return rows.some(function (r) { return r.typeName && r.typeName.indexOf("蛍光") >= 0; });
+  }
+
+  return { plan: plan, totals: totals, hasFluorescent: hasFluorescent };
 });
