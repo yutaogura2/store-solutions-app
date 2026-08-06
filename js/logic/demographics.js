@@ -82,7 +82,8 @@
           ratio: x.ratio,
           title: reco.title,
           items: reco.items,
-          reason: reco.reason
+          /* テンプレ文言の「府県平均」は実際の府県名に置換(単一県の資料で「府県」と出る違和感の解消) */
+          reason: String(reco.reason).replace(/府県平均/g, pref.name + "平均")
         };
       });
     } else {
@@ -93,7 +94,7 @@
         ratio: null,
         title: mkt.balanced.title,
         items: mkt.balanced.items,
-        reason: mkt.balanced.reason
+        reason: String(mkt.balanced.reason).replace(/府県平均/g, pref.name + "平均")
       }];
     }
 

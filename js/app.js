@@ -36,6 +36,7 @@
   /* ============ 共通ヘルパ ============ */
   function fmtYen(n) { return Math.round(n).toLocaleString("ja-JP") + "円"; }
   function fmtMan(n) { return (Math.round(n / 10000)).toLocaleString("ja-JP") + "万円"; }
+  function fmtMan1(n) { return SSEconomics.formatMan1(n); }
   function esc(s) {
     return String(s == null ? "" : s).replace(/[&<>"']/g, function (ch) {
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch];
@@ -982,11 +983,11 @@
     var agg = diag.econAggregate;
     if (agg && agg.annualSavingYen > 0) {
       html += '<div class="result-block"><h3>経済効果(概算)</h3><div class="metric-row">' +
-        '<div class="metric"><div class="metric-label">年間電気代削減(合計)</div><div class="metric-value positive">' + fmtMan(agg.annualSavingYen) + '/年</div><div class="metric-note">' + agg.annualSavingKwh.toLocaleString() + "kWh/年 削減</div></div>" +
+        '<div class="metric"><div class="metric-label">年間電気代削減(合計)</div><div class="metric-value positive">' + fmtMan1(agg.annualSavingYen) + '/年</div><div class="metric-note">' + agg.annualSavingKwh.toLocaleString() + "kWh/年 削減</div></div>" +
         '<div class="metric"><div class="metric-label">概算投資(本体+工事)</div><div class="metric-value">' + fmtMan(agg.investLow) + "〜" + fmtMan(agg.investHigh) + "</div><div class='metric-note'>" +
         (input.priceRatePercent === 100 ? "定価ベース(実売は見積時に提示)" : "機器価格=定価×" + input.priceRatePercent + "%で試算") + "</div></div>" +
         '<div class="metric"><div class="metric-label">投資回収の目安</div><div class="metric-value">' + (agg.paybackYears != null ? "約" + agg.paybackYears + "年" : "—") + '</div><div class="metric-note">投資中央値÷年間削減額</div></div>' +
-        '<div class="metric"><div class="metric-label">10年累計効果</div><div class="metric-value ' + (agg.tenYearNet >= 0 ? "positive" : "") + '">' + fmtMan(agg.tenYearNet) + "</div><div class='metric-note'>削減額×10年−投資中央値</div></div>" +
+        '<div class="metric"><div class="metric-label">10年累計効果</div><div class="metric-value ' + (agg.tenYearNet >= 0 ? "positive" : "") + '">' + fmtMan1(agg.tenYearNet) + "</div><div class='metric-note'>削減額×10年−投資中央値</div></div>" +
         "</div>" +
         '<div class="table-scroll"><table><thead><tr><th>カテゴリ</th><th class="num">現状電気代(推計)</th><th class="num">提案後</th><th class="num">年間削減</th><th class="num">回収目安</th></tr></thead><tbody>' +
         econRow("空調", diag.econ.aircon, input.tariff) +
@@ -1159,7 +1160,7 @@
         ? s.diag.demographics.recommendations.map(function (r) { return r.traitLabel; }).join("・")
         : "—";
       html += "<tr><td>" + esc(s.name) + "</td><td>" + (s.diag.demographics ? esc(s.diag.demographics.city.name) : "—") + "</td>" +
-        '<td class="num">' + (agg.annualSavingYen ? fmtMan(agg.annualSavingYen) + "/年" : "—") + "</td>" +
+        '<td class="num">' + (agg.annualSavingYen ? fmtMan1(agg.annualSavingYen) + "/年" : "—") + "</td>" +
         '<td class="num">' + (agg.investMid ? fmtMan(agg.investMid) : "—") + "</td>" +
         '<td class="num">' + (agg.paybackYears != null ? "約" + agg.paybackYears + "年" : "—") + "</td>" +
         "<td>" + esc(dgLabel) + "</td></tr>";

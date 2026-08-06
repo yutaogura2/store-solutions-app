@@ -16,6 +16,7 @@
   var DISCLAIMER = "本資料の金額・効果はすべて概算の目安です。正式なご提案・お見積りは現地調査のうえ作成いたします。";
 
   function man(n) { return (Math.round(n / 10000)).toLocaleString("ja-JP") + "万円"; }
+  function man1(n) { return SSEconomicsRef.formatMan1(n); }
   function num(n) { return Math.round(n).toLocaleString("ja-JP"); }
 
   function newSlide(pptx, title, state) {
@@ -175,7 +176,7 @@
       slide.addShape("rect", { x: 0.6, y: y + items.length * 1.05 + 0.15, w: 12.1, h: 1.1, fill: { color: "E6F4EA" } });
       slide.addText([
         { text: "設備更新による電気代削減(概算): ", options: { fontFace: FONT, fontSize: 15, color: "1F2430", bold: true } },
-        { text: "年間 約" + man(agg.annualSavingYen), options: { fontFace: FONT, fontSize: 20, color: GREEN, bold: true } },
+        { text: "年間 約" + man1(agg.annualSavingYen), options: { fontFace: FONT, fontSize: 20, color: GREEN, bold: true } },
         { text: "  投資回収の目安: " + (agg.paybackYears != null ? "約" + agg.paybackYears + "年" : "—"), options: { fontFace: FONT, fontSize: 15, color: "1F2430", bold: true } }
       ], { x: 0.9, y: y + items.length * 1.05 + 0.25, w: 11.6, h: 0.9, valign: "middle" });
     }
@@ -283,7 +284,7 @@
     }
     slide.addText([
       { text: "工事費の目安: " + man(a.install.low) + "〜" + man(a.install.high) + "(標準工事・実額は現地調査後)。" + (a.lifecycle ? a.lifecycle.reuseNote : "") + "\n", options: {} },
-      { text: "既設(" + a.era.label + "設置・想定COP" + a.era.cop + ")→ 新機種(COP" + a.chosen.cop + ")で効率が大きく改善します。※印の型番は提案時点の代表例です(正式見積時に最新確認)。", options: {} }
+      { text: "既設(" + a.era.label + "設置・想定COP" + a.era.cop + ")→ 新機種(COP" + a.chosen.cop + ")で効率が大きく改善します。※印の型番は提案時点の代表例(正式見積時に最新確認)、無印はカタログ確認済みの型番です。", options: {} }
     ], { x: 0.6, y: noteY, w: 12.1, h: 0.8, fontFace: FONT, fontSize: 10.5, color: GRAY, lineSpacing: 15 });
   }
 
@@ -385,6 +386,7 @@
     var y = Math.min(5.5, 1.1 + rows.length * 0.45 + 0.2);
     slide.addShape("rect", { x: 0.6, y: y, w: 12.1, h: 1.1, fill: { color: LIGHT } });
     slide.addText([
+      { text: "さらに詳しく把握したい場合(こちらは有料): ", options: { bold: true, fontSize: 11, color: AMBER } },
       { text: op.diagnosis.name + "(" + op.diagnosis.cost + ")\n", options: { bold: true, fontSize: 12, color: NAVY } },
       { text: op.diagnosis.summary + " " + op.diagnosis.note, options: { fontSize: 10.5, color: "1F2430" } }
     ], { x: 0.8, y: y + 0.08, w: 11.7, h: 0.95, valign: "top", fontFace: FONT, lineSpacing: 15 });
@@ -486,11 +488,12 @@
     var slide = newSlide(pptx, "設備更新による経済効果(概算)", state);
 
     // 左: 指標
+    var investLabel = input.priceRatePercent === 100 ? "概算投資(本体+工事)" : "概算投資(実勢想定・本体+工事)";
     var metrics = [
-      ["年間電気代の削減", "約" + man(agg.annualSavingYen) + "/年", GREEN],
-      ["概算投資(本体+工事)", man(agg.investLow) + "〜" + man(agg.investHigh), NAVY],
-      ["投資回収の目安", agg.paybackYears != null ? "約" + agg.paybackYears + "年" : "—", NAVY],
-      [C.ECON_YEARS + "年間の累計効果", "約" + man(agg.tenYearNet), agg.tenYearNet >= 0 ? GREEN : AMBER]
+      ["年間電気代の削減", "約" + man1(agg.annualSavingYen) + "/年", GREEN],
+      [investLabel, man(agg.investLow) + "〜" + man(agg.investHigh), NAVY],
+      ["投資回収の目安(投資中央値ベース)", agg.paybackYears != null ? "約" + agg.paybackYears + "年" : "—", NAVY],
+      [C.ECON_YEARS + "年間の累計効果(投資中央値ベース)", "約" + man1(agg.tenYearNet), agg.tenYearNet >= 0 ? GREEN : AMBER]
     ];
     metrics.forEach(function (m, i) {
       var y = 1.15 + i * 1.05;
@@ -517,31 +520,42 @@
       showLegend: false, fontFace: FONT
     });
 
-    // 下: カテゴリ別内訳
+    // 下: カテゴリ別内訳(※空調の回収が長期のときは正直に注記する — 数字を埋もれさせない)
+    var airconLongPayback = false;
     var rows = [[th("カテゴリ"), th("現状電気代(推計)"), th("ご提案後"), th("年間削減"), th("回収目安")]];
     [["空調", diag.econ.aircon], ["照明", diag.econ.lighting], ["厨房冷凍", diag.econ.kitchen]].forEach(function (pair) {
       var e = pair[1];
       if (!e) { return; }
+      var pbText = e.paybackYears != null ? "約" + e.paybackYears + "年" : "—";
+      if (pair[0] === "空調" && e.paybackYears != null && e.paybackYears >= 13) {
+        pbText += "※"; airconLongPayback = true;
+      }
       rows.push([
         td(pair[0]),
-        td(man(e.existingAnnualKwh * input.tariff) + "/年", { align: "right" }),
-        td(man(e.newAnnualKwh * input.tariff) + "/年", { align: "right" }),
-        td(man(e.annualSavingYen) + "/年", { align: "right", color: GREEN, bold: true }),
-        td(e.paybackYears != null ? "約" + e.paybackYears + "年" : "—", { align: "right" })
+        td(man1(e.existingAnnualKwh * input.tariff) + "/年", { align: "right" }),
+        td(man1(e.newAnnualKwh * input.tariff) + "/年", { align: "right" }),
+        td(man1(e.annualSavingYen) + "/年", { align: "right", color: GREEN, bold: true }),
+        td(pbText, { align: "right" })
       ]);
     });
     slide.addTable(rows, {
-      x: 0.6, y: 5.45, w: 12.1, colW: [2.2, 2.8, 2.6, 2.5, 2.0],
-      border: { type: "solid", color: "D9DDE3", pt: 0.75 }, autoPage: false, rowH: 0.34, fontSize: 10
+      x: 0.6, y: 5.3, w: 12.1, colW: [2.2, 2.8, 2.6, 2.5, 2.0],
+      border: { type: "solid", color: "D9DDE3", pt: 0.75 }, autoPage: false, rowH: 0.3, fontSize: 9.5
     });
+    var notes = [];
+    if (airconLongPayback) {
+      notes.push({ text: "※空調単体では電気代だけの回収は長めです。故障リスクの低減・快適性の改善など、省エネ以外の更新価値もあわせてご判断ください。\n", options: { fontSize: 8.5, color: GRAY } });
+    }
     if (agg.co2Kg > 0) {
-      slide.addText("CO2削減の概算: 約" + agg.co2Kg.toLocaleString("ja-JP") + " kg-CO2/年(杉の木 約" + agg.sugiTrees + "本分の年間吸収量に相当・環境省公表の排出係数に基づく概算)",
-        { x: 0.6, y: 6.5, w: 12.1, h: 0.28, fontFace: FONT, fontSize: 10, bold: true, color: "2E8B57" });
+      notes.push({ text: "CO2削減の概算: 約" + agg.co2Kg.toLocaleString("ja-JP") + " kg-CO2/年(杉の木約" + agg.sugiTrees + "本分に相当: 1本あたり年間約14kg-CO2の慣用目安による参考値・排出係数は環境省公表値)", options: { fontSize: 9, bold: true, color: "2E8B57" } });
+    }
+    if (notes.length > 0) {
+      slide.addText(notes, { x: 0.6, y: 6.46, w: 12.1, h: 0.36, valign: "top", fontFace: FONT, lineSpacing: 10.5 });
     }
     slide.addText("前提: 電気単価" + input.tariff + "円/kWh・営業" + input.hoursPerDay + "時間/日×" + input.daysPerMonth +
-      "日/月・機器価格=" + (input.priceRatePercent === 100 ? "メーカー希望価格" : "メーカー希望価格×" + input.priceRatePercent + "%") +
-      "・空調負荷率" + C.AIRCON_LOAD_FACTOR + "・年式帯の代表効率による推計。実際の使用状況・契約条件により変動します。",
-      { x: 0.6, y: 6.8, w: 12.1, h: 0.3, fontFace: FONT, fontSize: 9, color: GRAY });
+      "日/月・機器価格=" + (input.priceRatePercent === 100 ? "メーカー希望価格" : "◎提案機種の実勢想定(機器一覧の希望価格と異なる)") +
+      "・空調負荷率" + C.AIRCON_LOAD_FACTOR + "・年式帯の代表効率で推計。金額は0.1万円単位で四捨五入(内訳の和と合計が僅かに異なる場合あり)。改装費は別途。実使用により変動します。",
+      { x: 0.6, y: 6.82, w: 12.1, h: 0.26, fontFace: FONT, fontSize: 7.5, color: GRAY, lineSpacing: 9 });
   }
 
   /* ---- 投資回収の見通し(1年単位の累積折れ線+損益分岐点) ---- */
@@ -575,7 +589,7 @@
       slide.addText([
         { text: "約" + agg.paybackYears + "年", options: { bold: true, fontSize: 18, color: GREEN } },
         { text: " で累積削減額が投資額を上回ります(損益分岐点)。グラフの★印は、投資額を上回る最初の年です。", options: { color: "1F2430" } },
-        { text: "以降は削減額がそのまま利益になり、" + (C.ECON_YEARS || 10) + "年間の累計効果は約" + man(agg.tenYearNet) + "です。", options: { bold: true, color: agg.tenYearNet >= 0 ? GREEN : AMBER } }
+        { text: "以降は削減額がそのまま利益になり、" + (C.ECON_YEARS || 10) + "年間の累計効果は約" + man1(agg.tenYearNet) + "です。", options: { bold: true, color: agg.tenYearNet >= 0 ? GREEN : AMBER } }
       ], noteOpts);
     } else {
       slide.addText([
@@ -583,6 +597,8 @@
         { text: " 補助金の活用・機器グレードの見直し・電気単価の実態反映により改善する可能性があります(担当までご相談ください)。", options: { color: "1F2430" } }
       ], noteOpts);
     }
+    slide.addText("前提(電気単価・営業時間・投資額の中央値)は「設備更新による経済効果」スライドと同一です。",
+      { x: 0.6, y: 6.9, w: 12.1, h: 0.16, fontFace: FONT, fontSize: 8.5, color: GRAY });
   }
 
   /* ---- 導入方法のご提案(一括購入/リース・試算) ---- */
@@ -603,27 +619,32 @@
       x: 0.6, y: 1.3, w: 12.1, colW: [2.8, 4.4, 4.9],
       border: { type: "solid", color: "D9DDE3", pt: 0.75 }, autoPage: false, rowH: 0.55
     });
-    slide.addText("リース料率" + ls.ratePercent + "%/月・" + ls.years + "年での試算例です。実際の料率・可否はリース会社の審査により変動します。電気代削減額は本資料の概算前提によります。",
+    slide.addText("金額は税別。リース料率" + ls.ratePercent + "%/月・" + ls.years + "年での試算例です。実際の料率・可否はリース会社の審査により変動します。電気代削減額は本資料の概算前提によります。",
       { x: 0.6, y: 5.9, w: 12.1, h: 0.5, fontFace: FONT, fontSize: 10, color: GRAY });
   }
 
   /* ---- 補助金 ---- */
   function buildSubsidy(pptx, diag, state) {
     var slide = newSlide(pptx, "活用できる可能性のある補助金", state);
+    var n = diag.subsidies.length;
+    /* 件数が多いときは行を詰め、注意書きがフッターと重ならない位置に固定する */
+    var rh = n >= 5 ? 0.68 : 0.9;
+    var fs = n >= 5 ? 8.5 : 9.5;
     var rows = [[th("制度名"), th("概要"), th("補助率・公募")]];
     diag.subsidies.forEach(function (s) {
       rows.push([
-        td(s.name + "\n(" + s.admin + ")", { fontSize: 10, bold: true }),
-        td(s.summary + "\n【注意】" + s.caution, { fontSize: 9.5 }),
-        td(s.rateNote + "\n" + s.seasonNote, { fontSize: 9.5 })
+        td(s.name + "\n(" + s.admin + ")", { fontSize: n >= 5 ? 9 : 10, bold: true }),
+        td(s.summary + "\n【注意】" + s.caution, { fontSize: fs }),
+        td(s.rateNote + "\n" + s.seasonNote, { fontSize: fs })
       ]);
     });
     slide.addTable(rows, {
-      x: 0.6, y: 1.1, w: 12.1, colW: [3.6, 5.9, 2.6],
-      border: { type: "solid", color: "D9DDE3", pt: 0.75 }, autoPage: false, rowH: 0.9
+      x: 0.6, y: 1.0, w: 12.1, colW: [3.6, 5.9, 2.6],
+      border: { type: "solid", color: "D9DDE3", pt: 0.75 }, autoPage: false, rowH: rh
     });
+    var noteY = Math.min(1.0 + (n + 1) * (rh + 0.02) + 0.15, 6.5);
     slide.addText("補助金は公募時期・要件が毎年変わります。上記は「該当の可能性」であり、申請可否は最新の公募要領で確認のうえ、申請サポートも含めてご相談ください。",
-      { x: 0.6, y: 1.2 + diag.subsidies.length * 1.15 + 0.3, w: 12.1, h: 0.6, fontFace: FONT, fontSize: 11, color: AMBER, bold: true });
+      { x: 0.6, y: noteY, w: 12.1, h: 0.5, fontFace: FONT, fontSize: 10.5, color: AMBER, bold: true });
   }
 
   /* ---- 進め方 ---- */

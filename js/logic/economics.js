@@ -110,6 +110,13 @@
     return out;
   }
 
+  /* 表示用: 0.1万円単位の丸め。万円丸めだと「内訳の和(見た目23万)≠合計(22万)」の不一致が
+     顧客の検算で発覚するため、資料・UIともこの精度で統一する(外部AI審査 Round2 指摘) */
+  function formatMan1(n) {
+    var v = Math.round(n / 1000) / 10;
+    return v.toLocaleString("ja-JP", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + "万円";
+  }
+
   return {
     airconAnnualKwh: airconAnnualKwh,
     airconEconomics: airconEconomics,
@@ -117,6 +124,7 @@
     kitchenEconomics: kitchenEconomics,
     paybackChartYears: paybackChartYears,
     leaseCalc: leaseCalc,
-    aggregate: aggregate
+    aggregate: aggregate,
+    formatMan1: formatMan1
   };
 });
