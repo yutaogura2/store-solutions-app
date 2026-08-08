@@ -261,9 +261,78 @@ legend { font-size: var(--fs-sm); color: var(--text-muted); padding: 0 var(--spa
 
 tr.selected-row { background: var(--ok-bg); }
 
+/* STEP1: 詳細な試算条件(初回商談では閉じたまま診断できる) */
+.detail-conditions {
+  margin-top: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  background: var(--panel-bg);
+}
+.detail-conditions > summary {
+  cursor: pointer;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  padding: var(--space-1) 0;
+}
+.detail-conditions > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.input-inline {
+  width: 80px; font: inherit; padding: 6px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--panel-bg); color: var(--text);
+}
+
+/* STEP3: 意思決定コックピット(色は 緑=良好 / 黄=注意 / 赤=高リスク / 灰=情報 に限定) */
+.decision-summary {
+  border: 1px solid var(--border);
+  border-left: 6px solid var(--ref);
+  border-radius: var(--radius);
+  background: var(--panel-bg);
+  padding: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+.decision-summary.decision-ok   { border-left-color: var(--ok); }
+.decision-summary.decision-warn { border-left-color: var(--warn); }
+.decision-summary.decision-info { border-left-color: var(--ref); }
+.decision-head {
+  display: flex; flex-wrap: wrap; gap: var(--space-3);
+  align-items: flex-start; justify-content: space-between;
+}
+.decision-eyebrow { font-size: var(--fs-sm); color: var(--text-muted); }
+.decision-label { margin: 2px 0 0; font-size: var(--fs-xl); }
+.decision-badges { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.decision-summary-text { margin: var(--space-2) 0 0; }
+.decision-cols {
+  display: flex; flex-wrap: wrap; gap: var(--space-4);
+  margin-top: var(--space-2);
+}
+.decision-cols > div { flex: 1; min-width: 260px; }
+.decision-cols h4 { margin: 0 0 var(--space-1); font-size: var(--fs-base); }
+.decision-cols ul { margin: 0; padding-left: 1.2em; }
+.decision-cols li { margin-bottom: var(--space-1); }
+
+/* 1ページ要約(印刷/PDF専用) */
+.print-only { display: none; }
+.print-head h1 { font-size: 18px; margin: 0 0 var(--space-1); }
+.print-head p { margin: 0 0 var(--space-3); font-size: var(--fs-base); }
+
 @media print {
   .no-print { display: none !important; }
   .card { box-shadow: none; break-inside: avoid; }
+
+  /* 1ページ要約モード: 要約以外を隠してA4縦1枚に収める */
+  body.print-summary > *:not(#printSummary) { display: none !important; }
+  body.print-summary #printSummary { display: block !important; padding: 0; }
+  body.print-summary .decision-summary {
+    border: 1px solid #888; border-left-width: 4px;
+    padding: 8px 10px; margin: 0; break-inside: avoid;
+  }
+  body.print-summary .decision-label { font-size: 16px; }
+  body.print-summary .metric { padding: 6px 8px; min-width: 120px; }
+  body.print-summary .metric .metric-value { font-size: 16px; }
+  body.print-summary .decision-cols { gap: 12px; }
+  body.print-summary .status-note { font-size: 10px; }
+  @page { size: A4 portrait; margin: 12mm; }
 }
 @media (prefers-reduced-motion: reduce) {
   .spinner { animation: none; }

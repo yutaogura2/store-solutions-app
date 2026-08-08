@@ -53,6 +53,9 @@
 
   /* ============ 初期化 ============ */
   function init() {
+    // 版番号(表示の出所は constants.js の APP_VERSION に一元化)
+    $("appVersion").textContent = "v" + C.APP_VERSION;
+
     // 業態セレクト
     var sel = $("inBusinessType");
     Object.keys(C.AIRCON_LOAD_PER_TSUBO).forEach(function (key) {
@@ -106,12 +109,14 @@
     $("addLightRow").addEventListener("click", addLightRow);
     $("addKitchenRow").addEventListener("click", addKitchenRow);
     $("genPptxBtn").addEventListener("click", generatePptx);
+    $("printSummaryBtn").addEventListener("click", printSummary);
     $("exportCsvBtn").addEventListener("click", exportEconCsv);
     $("compareInput").addEventListener("change", loadCompareStores);
     $("compareReportBtn").addEventListener("click", generateComparePptx);
     $("saveJsonBtn").addEventListener("click", saveJson);
     $("loadJsonInput").addEventListener("change", loadJson);
     $("errorCloseBtn").addEventListener("click", function () { $("errorCard").hidden = true; });
+    window.addEventListener("afterprint", clearPrintMode);
 
     // 面積が入ったら改装の坪数の初期値に反映(未入力欄のみ)
     $("inArea").addEventListener("change", function () {
@@ -665,6 +670,12 @@
       leaseEnabled: $("inLeaseEnabled").checked,
       leaseYears: Number($("inLeaseYears").value) || C.DEFAULT_LEASE_YEARS,
       leaseRatePercent: Number($("inLeaseRate").value) || C.DEFAULT_LEASE_RATE_PERCENT,
+      /* 試算の根拠(試算精度A/B/Cの判定に使う。旧保存JSONに無い場合は読込時に全falseへ) */
+      evidence: {
+        billsConfirmed: $("inEvidenceBills").checked,
+        modelConfirmed: $("inEvidenceModel").checked,
+        quoteConfirmed: $("inEvidenceQuote").checked
+      },
       categories: selectedCategories(),
       aircon: {
         units: Number($("acUnits").value) || 0,
@@ -828,6 +839,9 @@
     diag.qrLinks = Object.keys(QR).map(function (k) { return QR[k]; })
       .filter(function (q) { return input.categories.indexOf(q.category) >= 0; });
 
+    // 意思決定サマリー(財務・設備リスク・試算精度の3軸。画面とPowerPointで同じ関数を使う)
+    diag.decision = window.SSDecision.fromDiag(diag, new Date().getFullYear(), input.evidence);
+
     // 店舗マップ(直近描画のキャッシュを使用 — 比較用の他店舗では含めない)
     if (opts.includeMap && mapHasBase() && mapState.lastImage) {
       diag.mapImage = mapState.lastImage;
@@ -837,10 +851,101 @@
     return diag;
   }
 
+  /* ============ 意思決定コックピット ============
+     30秒で「今どう判断すべきか」が分かる集約表示。財務評価と設備リスクは別バッジで示し、
+     設備が古いことを理由に経済性を良好に見せない(誇大提案の防止) */
+  var TONE_BADGE = { ok: "badge-ok", warn: "badge-warn", ng: "badge-ng", info: "badge-ref" };
+  var FIN_BADGE = { positive: { cls: "badge-ok", text: "投資に見合う" },
+                    long_payback: { cls: "badge-warn", text: "回収に時間がかかる" },
+                    insufficient: { cls: "badge-ref", text: "算定不足" } };
+  var RISK_BADGE = { high: { cls: "badge-ng", text: "設備リスク 高" },
+                     medium: { cls: "badge-warn", text: "設備リスク 中" },
+                     low: { cls: "badge-ref", text: "設備リスク 低" } };
+  var GRADE_BADGE = { A: "badge-ok", B: "badge-warn", C: "badge-ref" };
+
+  function decisionSummaryHtml(diag, opts) {
+    opts = opts || {};
+    var d = diag.decision;
+    if (!d) { return ""; }
+    var agg = diag.econAggregate || {};
+    var fin = FIN_BADGE[d.financial.code];
+    var risk = RISK_BADGE[d.operational.level];
+    var payback = d.financial.metrics.paybackYears;
+
+    var metrics = [
+      { label: "概算投資(中央値)", value: agg.investMid > 0 ? fmtMan1(agg.investMid) : "—", cls: "" },
+      { label: "年間の電気代削減", value: agg.annualSavingYen > 0 ? fmtMan1(agg.annualSavingYen) + "/年" : "—", cls: agg.annualSavingYen > 0 ? "positive" : "" },
+      { label: "投資回収の目安", value: payback === null ? "—" : "約" + payback + "年", cls: "" },
+      { label: (C.ECON_YEARS || 10) + "年間の累計収支", value: agg.annualSavingYen > 0 ? fmtMan1(agg.tenYearNet) : "—", cls: agg.tenYearNet >= 0 && agg.annualSavingYen > 0 ? "positive" : "" }
+    ];
+
+    var html = '<div class="decision-summary decision-' + esc(d.tone) + '" id="decisionSummary">' +
+      '<div class="decision-head">' +
+        '<div><span class="decision-eyebrow">この案件の判断</span>' +
+        '<h3 class="decision-label">' + esc(d.label) + "</h3></div>" +
+        '<div class="decision-badges">' +
+          '<span class="badge ' + fin.cls + '">財務: ' + esc(fin.text) + "</span>" +
+          '<span class="badge ' + risk.cls + '">' + esc(risk.text) + "</span>" +
+          '<span class="badge ' + GRADE_BADGE[d.confidence.grade] + '">試算精度 ' + esc(d.confidence.grade) +
+            "(根拠" + d.confidence.confirmedCount + "/" + d.confidence.total + ")</span>" +
+        "</div>" +
+      "</div>" +
+      '<p class="decision-summary-text">' + esc(d.summary) + "</p>" +
+      '<div class="metric-row">' +
+        metrics.map(function (m) {
+          return '<div class="metric"><div class="metric-label">' + esc(m.label) + "</div>" +
+            '<div class="metric-value ' + m.cls + '">' + esc(m.value) + "</div></div>";
+        }).join("") +
+      "</div>" +
+      '<div class="decision-cols">' +
+        '<div><h4>判断の根拠</h4><ul>' +
+          d.reasons.map(function (r) { return "<li>" + esc(r) + "</li>"; }).join("") +
+        "</ul></div>" +
+        '<div><h4>次の一手</h4><ul>' +
+          d.nextActions.map(function (a) { return "<li>" + esc(a) + "</li>"; }).join("") +
+        "</ul></div>" +
+      "</div>" +
+      '<p class="status-note">' + esc(d.confidence.note) +
+        (d.confidence.missing.length > 0 ? "(未確認: " + d.confidence.missing.map(function (m) { return esc(m.label); }).join(" / ") + ")" : "") +
+        "</p>" +
+      '<p class="status-note">金額・効果はすべて概算の目安です。正式なご提案・お見積りは現地調査のうえ作成します。本判断は営業判断の補助であり、正式見積・法的判断を代替するものではありません。</p>' +
+      "</div>";
+    return html;
+  }
+
+  /* 1ページ要約(印刷/PDF) — 顧客名・提案日・判断・注記のみをA4縦1枚に */
+  function printSummary() {
+    if (!lastDiag || !lastDiag.decision) {
+      showError("先に診断を行ってください", "STEP3(診断・提案)を表示してから、もう一度お試しください");
+      return;
+    }
+    var input = lastDiag.input;
+    var meta = input.meta || {};
+    $("printSummary").innerHTML =
+      '<div class="print-head"><h1>設備更新のご提案(判断要約)</h1>' +
+      "<p>" + esc(input.customer || "(店舗名未入力)") + " 様" +
+      (meta.proposalDate ? " / 提案日: " + esc(meta.proposalDate.replace(/-/g, "/")) : "") +
+      (meta.companyName ? " / " + esc(meta.companyName) : "") + "</p></div>" +
+      decisionSummaryHtml(lastDiag, { forPrint: true });
+    $("printSummary").hidden = false;
+    document.body.classList.add("print-summary");
+    window.print();
+    // afterprint が発火しない環境でも確実に元へ戻す
+    window.setTimeout(clearPrintMode, 1000);
+  }
+
+  function clearPrintMode() {
+    document.body.classList.remove("print-summary");
+    $("printSummary").hidden = true;
+  }
+
   /* ============ 診断の描画 ============ */
   function renderDiag(diag) {
     var html = "";
     var input = diag.input;
+
+    // 最上部に意思決定サマリー(カテゴリ別の詳細はこの後に従来どおり続く)
+    html += decisionSummaryHtml(diag);
 
     if (diag.mapImage) {
       html += '<div class="result-block"><h3>店舗マップ(更新箇所)</h3>' +
@@ -1235,6 +1340,11 @@
     $("inLeaseEnabled").checked = d.leaseEnabled !== false;
     $("inLeaseYears").value = d.leaseYears || C.DEFAULT_LEASE_YEARS;
     $("inLeaseRate").value = d.leaseRatePercent || C.DEFAULT_LEASE_RATE_PERCENT;
+    // 旧保存JSON(evidenceなし)は全て未確認として読み込む
+    var ev = window.SSDecision.normalizeEvidence(d.evidence);
+    $("inEvidenceBills").checked = ev.billsConfirmed;
+    $("inEvidenceModel").checked = ev.modelConfirmed;
+    $("inEvidenceQuote").checked = ev.quoteConfirmed;
     if (MD && MD.cities.length > 0) {
       $("inPref").value = d.prefCode || "";
       fillCities(d.prefCode || "", d.cityCode || null);

@@ -67,6 +67,7 @@
     pptx.title = input.customer + "様 店舗設備のご提案";
 
     buildCover(pptx, diag, state);
+    if (diag.decision) { buildDecisionSummary(pptx, diag, state, C); }
     buildHearingSummary(pptx, diag, state);
     buildOverview(pptx, diag, state);
     if (diag.background) { buildBackground(pptx, diag, state); }
@@ -160,6 +161,76 @@
       border: { type: "solid", color: "D9DDE3", pt: 0.75 },
       rowH: 0.42, valign: "middle", autoPage: false
     });
+  }
+
+  /* ---- 意思決定サマリー(表紙の次・画面のコックピットと同じ判断を載せる) ----
+     財務評価と設備リスクを別々に示し、回収が長い案件を「更新推奨」に見せない。
+     判断コード・数値・精度は js/logic/decision.js の同一結果を使うため画面と必ず一致する */
+  function buildDecisionSummary(pptx, diag, state, C) {
+    var d = diag.decision;
+    var agg = diag.econAggregate || {};
+    var slide = newSlide(pptx, "ご判断の要約(概算にもとづく現時点の見立て)", state);
+
+    var toneColor = { ok: GREEN, warn: AMBER, info: GRAY }[d.tone] || GRAY;
+    var toneFill = { ok: "E6F4EA", warn: "FDF3D7", info: LIGHT }[d.tone] || LIGHT;
+
+    // 見出し帯(判断ラベル)
+    slide.addShape("rect", { x: 0.6, y: 0.95, w: 12.1, h: 0.72, fill: { color: toneFill } });
+    slide.addText([
+      { text: "この案件の判断: ", options: { fontSize: 12, color: GRAY } },
+      { text: d.label, options: { fontSize: 17, bold: true, color: toneColor } }
+    ], { x: 0.8, y: 0.95, w: 11.7, h: 0.72, fontFace: FONT, valign: "middle" });
+
+    // 3つの評価バッジ
+    var finText = { positive: "投資に見合う", long_payback: "回収に時間がかかる", insufficient: "算定不足" }[d.financial.code];
+    var riskText = { high: "設備リスク 高", medium: "設備リスク 中", low: "設備リスク 低" }[d.operational.level];
+    var riskColor = { high: "B00020", medium: AMBER, low: GRAY }[d.operational.level];
+    var finColor = { positive: GREEN, long_payback: AMBER, insufficient: GRAY }[d.financial.code];
+    var badges = [
+      { label: "財務評価", value: finText, color: finColor },
+      { label: "設備リスク(事業継続)", value: riskText, color: riskColor },
+      { label: "試算精度", value: d.confidence.grade + "(根拠 " + d.confidence.confirmedCount + "/" + d.confidence.total + "件 確認)",
+        color: d.confidence.grade === "A" ? GREEN : (d.confidence.grade === "B" ? AMBER : GRAY) }
+    ];
+    badges.forEach(function (b, i) {
+      var x = 0.6 + i * 4.07;
+      slide.addShape("rect", { x: x, y: 1.82, w: 3.9, h: 0.66, fill: { color: LIGHT } });
+      slide.addText(b.label, { x: x + 0.15, y: 1.85, w: 3.6, h: 0.26, fontFace: FONT, fontSize: 9.5, color: GRAY });
+      slide.addText(b.value, { x: x + 0.15, y: 2.09, w: 3.6, h: 0.34, fontFace: FONT, fontSize: 12.5, bold: true, color: b.color });
+    });
+
+    // 主要4指標(画面と同じ値・同じ丸め)
+    var payback = d.financial.metrics.paybackYears;
+    var metrics = [
+      { label: "概算投資(中央値)", value: agg.investMid > 0 ? man1(agg.investMid) : "—", color: NAVY },
+      { label: "年間の電気代削減", value: agg.annualSavingYen > 0 ? man1(agg.annualSavingYen) + "/年" : "—", color: agg.annualSavingYen > 0 ? GREEN : GRAY },
+      { label: "投資回収の目安", value: payback === null ? "—" : "約" + payback + "年", color: NAVY },
+      { label: (C.ECON_YEARS || 10) + "年間の累計収支", value: agg.annualSavingYen > 0 ? man1(agg.tenYearNet) : "—",
+        color: (agg.annualSavingYen > 0 && agg.tenYearNet >= 0) ? GREEN : AMBER }
+    ];
+    metrics.forEach(function (m, i) {
+      var x = 0.6 + i * 3.05;
+      slide.addShape("rect", { x: x, y: 2.62, w: 2.9, h: 1.0, fill: { color: LIGHT } });
+      slide.addText(m.label, { x: x + 0.15, y: 2.68, w: 2.6, h: 0.28, fontFace: FONT, fontSize: 10, color: GRAY });
+      slide.addText(m.value, { x: x + 0.15, y: 2.96, w: 2.6, h: 0.56, fontFace: FONT, fontSize: 19, bold: true, color: m.color, valign: "middle" });
+    });
+
+    // 判断の根拠 / 次の一手
+    slide.addText("判断の根拠", { x: 0.6, y: 3.78, w: 5.9, h: 0.3, fontFace: FONT, fontSize: 13, bold: true, color: NAVY });
+    slide.addText(d.reasons.map(function (r) { return { text: "・" + r + "\n", options: {} }; }),
+      { x: 0.6, y: 4.1, w: 5.9, h: 1.75, fontFace: FONT, fontSize: 11, color: "1F2430", valign: "top", lineSpacing: 16 });
+
+    slide.addText("次の一手", { x: 6.8, y: 3.78, w: 5.9, h: 0.3, fontFace: FONT, fontSize: 13, bold: true, color: NAVY });
+    slide.addText(d.nextActions.map(function (a) { return { text: "・" + a + "\n", options: {} }; }),
+      { x: 6.8, y: 4.1, w: 5.9, h: 1.75, fontFace: FONT, fontSize: 11, color: "1F2430", valign: "top", lineSpacing: 16 });
+
+    // 精度の補足 + 概算注記(フッターとは別に必ず出す)
+    slide.addShape("rect", { x: 0.6, y: 5.95, w: 12.1, h: 0.5, fill: { color: LIGHT } });
+    slide.addText(d.confidence.note +
+      (d.confidence.missing.length > 0 ? "(未確認: " + d.confidence.missing.map(function (m) { return m.label; }).join(" / ") + ")" : ""),
+      { x: 0.75, y: 5.95, w: 11.8, h: 0.5, fontFace: FONT, fontSize: 10, color: "1F2430", valign: "middle" });
+    slide.addText("本判断は概算にもとづく営業判断の補助であり、正式なお見積り・法的な判断を代替するものではありません。金額・効果は現地調査のうえ確定します。",
+      { x: 0.6, y: 6.55, w: 12.1, h: 0.4, fontFace: FONT, fontSize: 9, color: GRAY });
   }
 
   /* ---- ご提案の全体像 ---- */

@@ -9,7 +9,7 @@
 <body>
   <header class="app-header">
     <h1>店舗ソリューション提案ツール</h1>
-    <span class="version">v1.0.0</span>
+    <span class="version" id="appVersion"></span>
     <span class="header-sub">初回商談ヒアリング → リプレイス診断 → 提案資料作成(ストアソリューションズ株式会社)</span>
   </header>
 
@@ -48,28 +48,6 @@
           <label for="inDays">営業日数(日/月)</label>
           <input type="number" id="inDays" min="1" max="31" step="1" value="26">
         </div>
-        <div class="field">
-          <label for="inTariff">電気単価(円/kWh)</label>
-          <input type="number" id="inTariff" min="10" max="100" step="0.5" value="30">
-          <span class="status-note">請求書があれば実単価に変更(初期値は目安)</span>
-        </div>
-        <div class="field">
-          <label for="inPriceRate">機器価格の係数(%)</label>
-          <input type="number" id="inPriceRate" min="10" max="100" step="5" value="100">
-          <span class="status-note">経済効果の投資額に反映(定価=100。実勢に合わせて調整)</span>
-        </div>
-        <div class="field">
-          <label>リース試算(導入方法の比較)</label>
-          <label class="check-item"><input type="checkbox" id="inLeaseEnabled" checked> リース提案も試算する</label>
-          <div class="check-row" style="margin-top:4px;">
-            <span class="status-note">期間</span>
-            <input type="number" id="inLeaseYears" min="3" max="10" step="1" value="6" style="width:70px;font:inherit;padding:6px;border:1px solid var(--border);border-radius:6px;background:var(--panel-bg);color:var(--text);">
-            <span class="status-note">年 / 月額料率</span>
-            <input type="number" id="inLeaseRate" min="0.5" max="5" step="0.1" value="1.7" style="width:80px;font:inherit;padding:6px;border:1px solid var(--border);border-radius:6px;background:var(--panel-bg);color:var(--text);">
-            <span class="status-note">%</span>
-          </div>
-          <span class="status-note">料率は一般的な目安 — 提携リース会社の条件に合わせて調整(審査により変動)</span>
-        </div>
         <div class="field" id="fieldPref" hidden>
           <label for="inPref">店舗所在地(府県)</label>
           <select id="inPref"><option value="">未選択</option></select>
@@ -89,6 +67,43 @@
         <label class="check-item"><input type="checkbox" id="catRenovation"> 店舗改装</label>
       </div>
       <p class="status-note" id="catError" hidden>カテゴリを1つ以上選択してください</p>
+
+      <details class="detail-conditions no-print" id="detailConditions">
+        <summary>詳細な試算条件(電気単価・機器価格・リース・試算の根拠)— 初期値のままでも診断できます</summary>
+        <div class="form-grid" style="margin-top: var(--space-3);">
+          <div class="field">
+            <label for="inTariff">電気単価(円/kWh)</label>
+            <input type="number" id="inTariff" min="10" max="100" step="0.5" value="30">
+            <span class="status-note">請求書があれば実単価に変更(初期値は目安)</span>
+          </div>
+          <div class="field">
+            <label for="inPriceRate">機器価格の係数(%)</label>
+            <input type="number" id="inPriceRate" min="10" max="100" step="5" value="100">
+            <span class="status-note">経済効果の投資額に反映(定価=100。実勢に合わせて調整)</span>
+          </div>
+          <div class="field">
+            <label>リース試算(導入方法の比較)</label>
+            <label class="check-item"><input type="checkbox" id="inLeaseEnabled" checked> リース提案も試算する</label>
+            <div class="check-row" style="margin-top:4px;">
+              <span class="status-note">期間</span>
+              <input type="number" id="inLeaseYears" min="3" max="10" step="1" value="6" class="input-inline" aria-label="リース期間(年)">
+              <span class="status-note">年 / 月額料率</span>
+              <input type="number" id="inLeaseRate" min="0.5" max="5" step="0.1" value="1.7" class="input-inline" aria-label="リース月額料率(%)">
+              <span class="status-note">%</span>
+            </div>
+            <span class="status-note">料率は一般的な目安 — 提携リース会社の条件に合わせて調整(審査により変動)</span>
+          </div>
+          <div class="field" id="fieldEvidence">
+            <label id="evidenceLabel">試算の根拠(確認できたものにチェック)</label>
+            <div role="group" aria-labelledby="evidenceLabel">
+              <label class="check-item"><input type="checkbox" id="inEvidenceBills"> 直近12か月の請求書・使用量を確認した</label>
+              <label class="check-item"><input type="checkbox" id="inEvidenceModel"> 既設機器の銘板・型番を確認した</label>
+              <label class="check-item"><input type="checkbox" id="inEvidenceQuote"> 見積単価または確定に近い価格を反映した</label>
+            </div>
+            <span class="status-note">チェック数で試算精度(A/B/C)を表示します。未チェックでも診断できます(既定値・年式帯からの推計)</span>
+          </div>
+        </div>
+      </details>
 
       <details class="no-print" style="margin-top: var(--space-4);">
         <summary class="status-note" style="cursor: pointer;">地域データの更新設定(管理者向け・e-Stat APIキー)</summary>
@@ -310,6 +325,7 @@
       <p class="status-note">生成される資料: 表紙/現状の課題/ご提案の全体像/店舗マップ/カテゴリ別のご提案(既設写真・新機種イメージつき)/経済効果/投資回収の見通し/補助金/導入の進め方/留意事項</p>
       <div class="wizard-actions" style="justify-content: flex-start;">
         <button type="button" class="btn btn-primary" id="genPptxBtn">提案資料(PowerPoint)を生成</button>
+        <button type="button" class="btn" id="printSummaryBtn">1ページ要約を印刷/PDF</button>
         <button type="button" class="btn" id="exportCsvBtn">計算根拠を出力(CSV — 補助金申請の添付用)</button>
         <button type="button" class="btn" id="saveJsonBtn">入力内容を保存(JSON)</button>
         <label class="upload-label">
@@ -356,6 +372,9 @@
     </div>
   </main>
 
+  <!-- 1ページ要約(印刷/PDF専用 — 印刷時のみ表示) -->
+  <section id="printSummary" class="print-only" hidden aria-hidden="true"></section>
+
   <footer class="app-footer">
     <p class="status-note">本ツールの金額・効果はすべて概算の目安です。正式なご提案・お見積りは現地調査のうえ作成してください。型番は提案時点の代表例であり、受注前に最新カタログでご確認ください。顧客の入力内容はこのブラウザ内でのみ処理され、外部には送信されません。</p>
   </footer>
@@ -381,6 +400,7 @@
   <script src="js/logic/economics.js"></script>
   <script src="js/logic/subsidy.js"></script>
   <script src="js/logic/demographics.js"></script>
+  <script src="js/logic/decision.js"></script>
   <script src="js/pptx/proposal.js"></script>
   <script src="js/app.js"></script>
 </body>
